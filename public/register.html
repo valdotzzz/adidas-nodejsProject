@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas | Create Account</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="js/layout.js"></script>
+</head>
+<body>
+
+    <section class="auth-section">
+        <div class="auth-container">
+            <h2 class="auth-title">Create Account</h2>
+            <p class="auth-subtitle">Register your details below to set up your corporate performance catalog profile.</p>
+            
+            <div id="global-error" class="error-msg-main" style="display: none;"></div>
+
+            <form id="registerForm" novalidate>
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name">
+                    <div class="field-error" id="name-error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email">
+                    <div class="field-error" id="email-error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password">
+                    <div class="field-error" id="password-error"></div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Register</button>
+            </form>
+        </div>
+    </section>
+
+    <script src="js/register.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas | Shop Collection</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="js/layout.js"></script>
+</head>
+<body>
+
+    <section class="products-section">
+        <div class="section-header">
+            <div>
+                <div class="section-label" id="catalog-label">Performance Catalog</div>
+                <h2 class="section-title" id="catalog-title">All Shoes</h2>
+            </div>
+            
+            <div class="adidas-hero__actions" style="gap: 8px;">
+                <button class="btn btn-dark filter-btn active" data-category="all" style="padding: 8px 16px; font-size: 11px;">All</button>
+                <button class="btn btn-dark filter-btn" data-category="running" style="padding: 8px 16px; font-size: 11px;">Running</button>
+                <button class="btn btn-dark filter-btn" data-category="lifestyle" style="padding: 8px 16px; font-size: 11px;">Lifestyle</button>
+                <button class="btn btn-dark filter-btn" data-category="basketball" style="padding: 8px 16px; font-size: 11px;">Basketball</button>
+            </div>
+        </div>
+
+        <div class="products-grid" id="catalog-grid"></div>
+    </section>
+
+    <script src="js/shop.js"></script>
+</body>
+</html>

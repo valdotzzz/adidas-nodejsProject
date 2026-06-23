@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas | Sign In</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="js/layout.js"></script>
+</head>
+<body>
+
+    <section class="auth-section">
+        <div class="auth-container">
+            <h2 class="auth-title">Account Sign In</h2>
+            <p class="auth-subtitle">Provide your credentials to authenticate into secure database environments.</p>
+            
+            <div id="global-error" class="error-msg-main" style="display: none;"></div>
+
+            <form id="loginForm" novalidate>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" autocomplete="username">
+                    <div class="field-error" id="email-error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password">
+                    <div class="field-error" id="password-error"></div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </form>
+
+            <div class="auth-navigation-footer" style="margin-top: 24px; text-align: center;">
+                <a href="register.html" style="font-size: 12px; color: #888888; text-transform: uppercase; letter-spacing: 1px; transition: color 0.2s ease;">Don't have an account? Create Account</a>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/login.js"></script>
+</body>
+</html>

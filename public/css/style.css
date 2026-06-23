@@ -66,11 +66,14 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    color: #ffffff;
     background: none;
     border: none;
     cursor: pointer;
     text-decoration: none;
+}
+
+.btn-link {
+    color: #ffffff;
 }
 
 .logout-link {
@@ -147,9 +150,15 @@
 }
 
 @media (max-width: 768px) {
-    .footer-container { flex-direction: column; gap: 40px; }
-    .footer-links { flex-direction: column; gap: 40px; }
-    .main-nav { display: none; }
+    .footer-container,
+    .footer-links { 
+        flex-direction: column; 
+        gap: 40px; 
+    }
+    
+    .main-nav { 
+        display: none; 
+    }
 }
 
 body {
@@ -483,4 +492,107 @@ img {
     .categories-grid { grid-template-columns: 1fr; }
     .adidas-hero { grid-template-columns: 1fr; }
     .adidas-banner { flex-direction: column; align-items: flex-start; gap: 40px; }
+}
+
+/* ==========================================================================
+   AUTHENTICATION PAGES
+   ========================================================================== */
+.auth-section {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 5%;
+    background-color: #000000;
+}
+
+.auth-container {
+    background-color: #111111;
+    border: 1px solid #1a1a1a;
+    padding: 40px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.auth-title {
+    font-size: 28px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    font-size: 14px;
+    color: #777777;
+    margin-bottom: 32px;
+    line-height: 1.5;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    color: #aaaaaa;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px;
+    background-color: #1a1a1a;
+    border: 1px solid #333333;
+    color: #ffffff;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #ffffff;
+}
+
+.btn-block {
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* Red input highlight for validation failures */
+.field-invalid {
+    border-color: #ff4444 !important;
+    background-color: #1a0c0c !important;
+}
+
+/* Embedded field error text styling */
+.field-error {
+    color: #ff4444;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: none;
+}
+
+/* Global processing warning alert box styling */
+.error-msg-main {
+    background-color: #ff4444;
+    color: #ffffff;
+    padding: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.auth-navigation-footer a:hover {
+    color: #ffffff !important;
 }
