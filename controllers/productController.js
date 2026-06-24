@@ -4,11 +4,8 @@ const { Product, Variant, ProductImage, Category } = require('../models');
 exports.createProduct = async (req, res) => {
     try {
         // Ensure category_id is pulled from the payload request body
-        const { name, style_code, description, price, gender, category_id } = req.body;
+        const { name, style_code, description, price, gender, category_id, is_exclusive, variants } = req.body;
 
-        // Ensure category_id is explicitly forwarded to the persistence handler
-        await product.update({ name, style_code, description, price, gender, category_id });
-        
         // Verify category exists
         const category = await Category.findByPk(category_id);
         if (!category) {
@@ -22,16 +19,9 @@ exports.createProduct = async (req, res) => {
             description,
             price,
             gender,
-            is_exclusive,
+            is_exclusive: is_exclusive || false,
             category_id
         });
-
-        const uploadImages = async (productId, files) => {
-            const imagePromises = files.map(file => 
-                ProductImage.create({ product_id: productId, image_path: `/uploads/${file.filename}` })
-            );
-            await Promise.all(imagePromises);
-        };
 
         // Bulk insert associated structural variants if provided
         if (variants && variants.length > 0) {

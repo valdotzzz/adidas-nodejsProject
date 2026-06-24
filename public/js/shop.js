@@ -52,7 +52,7 @@ $(document).ready(function() {
                 filteredProducts.forEach(product => {
                     const imageSrc = (product.ProductImages && product.ProductImages.length > 0) 
                         ? product.ProductImages[0].image_path 
-                        : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80';
+                        : 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
 
                     const createdDate = new Date(product.createdAt);
                     const systemDate = new Date();

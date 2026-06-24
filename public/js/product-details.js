@@ -31,7 +31,7 @@ $(document).ready(function() {
             }
 
             // Resolve Image Array fallback loops (checking both camelCase and snake_case properties)
-            let imageSrc = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80';
+            let imageSrc = 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
             const images = product.ProductImages || product.product_images;
             
             if (images && images.length > 0) {
@@ -110,9 +110,9 @@ $(document).ready(function() {
         localStorage.setItem('adidas_cart', JSON.stringify(cart));
         
         const btn = $(this);
-        btn.text('Added To Bag!').removeClass('btn-primary').addClass('btn-outline').prop('disabled', true);
+        btn.text('Added To Cart!').removeClass('btn-primary').addClass('btn-outline').prop('disabled', true);
         setTimeout(() => {
-            btn.text('Add to Bag').removeClass('btn-outline').addClass('btn-primary').prop('disabled', false);
+            btn.text('Add to Cart').removeClass('btn-outline').addClass('btn-primary').prop('disabled', false);
         }, 1500);
     });
 });
