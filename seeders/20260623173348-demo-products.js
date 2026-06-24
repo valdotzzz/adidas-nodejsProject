@@ -2,20 +2,9 @@
 
 module.exports = {
   async up (queryInterface, Sequelize) {
-    // 1. Fetch categories to map foreign keys dynamically
-    const [categories] = await queryInterface.sequelize.query(
-      `SELECT id, name FROM Categories;`
-    );
-
-    const getCategoryId = (name) => {
-      const match = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
-      return match ? match.id : null;
-    };
-
-    // 2. Insert array of 21 varied product instances matching the model schema configurations
     return queryInterface.bulkInsert('products', [
       // ==========================================
-      // RUNNING CATEGORY
+      // RUNNING CATEGORY (ID: 1)
       // ==========================================
       {
         name: 'Ultraboost Light',
@@ -24,7 +13,7 @@ module.exports = {
         price: 10000.00,
         gender: 'unisex',
         is_exclusive: true,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -35,7 +24,7 @@ module.exports = {
         price: 7000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -46,7 +35,7 @@ module.exports = {
         price: 13000.00,
         gender: 'unisex',
         is_exclusive: true,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -57,7 +46,7 @@ module.exports = {
         price: 5300.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -68,7 +57,7 @@ module.exports = {
         price: 4500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -79,7 +68,7 @@ module.exports = {
         price: 4300.00,
         gender: 'kids',
         is_exclusive: false,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -90,13 +79,13 @@ module.exports = {
         price: 3300.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: getCategoryId('Running'),
+        category_id: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       },
 
       // ==========================================
-      // LIFESTYLE CATEGORY
+      // LIFESTYLE CATEGORY (ID: 2)
       // ==========================================
       {
         name: 'Samba OG Black',
@@ -105,7 +94,7 @@ module.exports = {
         price: 5500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -116,7 +105,7 @@ module.exports = {
         price: 6500.00,
         gender: 'women',
         is_exclusive: true,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -127,7 +116,7 @@ module.exports = {
         price: 5300.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -138,7 +127,7 @@ module.exports = {
         price: 5500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -149,7 +138,7 @@ module.exports = {
         price: 8500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -160,7 +149,7 @@ module.exports = {
         price: 5500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -171,13 +160,13 @@ module.exports = {
         price: 8000.00,
         gender: 'men',
         is_exclusive: true,
-        category_id: getCategoryId('Lifestyle'),
+        category_id: 2,
         createdAt: new Date(),
         updatedAt: new Date()
       },
 
       // ==========================================
-      // BASKETBALL CATEGORY
+      // BASKETBALL CATEGORY (ID: 3)
       // ==========================================
       {
         name: 'Harden Volume 7',
@@ -186,7 +175,7 @@ module.exports = {
         price: 8500.00,
         gender: 'men',
         is_exclusive: true,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -197,7 +186,7 @@ module.exports = {
         price: 7500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -208,7 +197,7 @@ module.exports = {
         price: 7000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -219,7 +208,7 @@ module.exports = {
         price: 8000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -230,7 +219,7 @@ module.exports = {
         price: 6000.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -241,7 +230,7 @@ module.exports = {
         price: 6500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -252,7 +241,7 @@ module.exports = {
         price: 3500.00,
         gender: 'kids',
         is_exclusive: false,
-        category_id: getCategoryId('Basketball'),
+        category_id: 3,
         createdAt: new Date(),
         updatedAt: new Date()
       }

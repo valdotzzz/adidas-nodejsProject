@@ -44,4 +44,8 @@ db.OrderItem.belongsTo(db.Order, { foreignKey: 'order_id' });
 db.Product.hasMany(db.OrderItem, { foreignKey: 'product_id' });
 db.OrderItem.belongsTo(db.Product, { foreignKey: 'product_id' });
 
+//Product <-> category
+db.Category.hasMany(db.Product, { foreignKey: 'category_id' });
+db.Product.belongsTo(db.Category, { foreignKey: 'category_id' });
+
 module.exports = db;

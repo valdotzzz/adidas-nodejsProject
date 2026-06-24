@@ -3,8 +3,12 @@ const { Product, Variant, ProductImage, Category } = require('../models');
 // Create Product with Variants (Fulfills partial MP1/MP2)
 exports.createProduct = async (req, res) => {
     try {
-        const { name, style_code, description, price, gender, is_exclusive, category_id, variants } = req.body;
+        // Ensure category_id is pulled from the payload request body
+        const { name, style_code, description, price, gender, category_id } = req.body;
 
+        // Ensure category_id is explicitly forwarded to the persistence handler
+        await product.update({ name, style_code, description, price, gender, category_id });
+        
         // Verify category exists
         const category = await Category.findByPk(category_id);
         if (!category) {

@@ -720,3 +720,56 @@ table.dataTable td {
 .dataTables_wrapper .dataTables_paginate .paginate_button {
     color: #ffffff !important;
 }
+
+/* ==========================================================================
+   ADMIN LAYOUT EXTENSIONS & MODAL DIALOGS
+   ========================================================================== */
+.admin-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.admin-modal-window {
+    background-color: #111111;
+    border: 1px solid #1a1a1a;
+    width: 100%;
+    max-width: 500px;
+    padding: 32px;
+    position: relative;
+}
+.admin-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 16px;
+}
+#modalTargetTitle {
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+}
+.admin-modal-close {
+    background: none;
+    border: none;
+    color: #aaaaaa;
+    font-size: 18px;
+    cursor: pointer;
+}
+.admin-modal-close:hover {
+    color: #ffffff;
+}
+.form-select-control:focus {
+    outline: none;
+    border-color: #ffffff;
+}

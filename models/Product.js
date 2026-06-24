@@ -28,6 +28,14 @@ const Product = sequelize.define('Product', {
         type: DataTypes.ENUM('men', 'women', 'unisex', 'kids'),
         allowNull: false
     },
+    category_id: { // <-- ADD THIS FOREIGN KEY PROPERTY
+        type: DataTypes.INTEGER,
+        allowNull: true, 
+        references: {
+            model: 'categories', // Matches your category table name
+            key: 'id'
+        }
+    },
     is_exclusive: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
