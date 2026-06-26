@@ -773,3 +773,360 @@ table.dataTable td {
     outline: none;
     border-color: #ffffff;
 }
+
+/* ============================================
+   HEADER — REDESIGNED (adidas.com style)
+============================================ */
+.adidas-header {
+    border-bottom: 1px solid #e5e5e5;
+    background: #fff;
+}
+.header-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: 64px;
+}
+.header-container .logo {
+    color: #000;
+    flex-shrink: 0;
+}
+.main-nav {
+    display: flex;
+    gap: 24px;
+    flex: 1;
+}
+.main-nav .nav-link {
+    color: #000;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.3px;
+}
+.main-nav .nav-link:hover { color: #555; }
+
+.header-search {
+    display: flex;
+    align-items: center;
+    background: #f5f5f5;
+    border-radius: 24px;
+    padding: 8px 16px;
+    width: 220px;
+    transition: width 0.2s ease;
+}
+.header-search:focus-within { width: 280px; }
+.header-search input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 13px;
+    flex: 1;
+    color: #000;
+}
+.header-search button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #555;
+    display: flex;
+    align-items: center;
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-shrink: 0;
+}
+.icon-link {
+    color: #000;
+    display: flex;
+    align-items: center;
+    position: relative;
+    text-decoration: none;
+}
+.icon-link svg { width: 22px; height: 22px; }
+
+.cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    background: #000;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-group { display: flex; align-items: center; gap: 16px; }
+.btn-link {
+    color: #000;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.logout-link {
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .main-nav { display: none; }
+    .header-search { display: none; }
+}
+/* ============================================
+   CART PAGE — REDESIGNED (adidas.com bag style)
+============================================ */
+.cart-page-layout {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 64px;
+}
+
+.cart-bag-title {
+    font-size: 32px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.cart-bag-title__count {
+    font-size: 16px;
+    font-weight: 400;
+    color: #767677;
+    text-transform: none;
+}
+.cart-bag-subtitle {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 28px;
+}
+
+.cart-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 24px;
+    padding: 24px 0;
+    border-top: 1px solid #e5e5e5;
+    align-items: start;
+}
+.cart-row:first-child { border-top: none; }
+
+.cart-row__image {
+    width: 180px;
+    height: 180px;
+    background: #f0f0f0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.cart-row__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cart-row__details {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    height: 100%;
+}
+
+.cart-row__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.cart-row__name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 4px;
+}
+.cart-row__meta {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.5;
+}
+.cart-row__stock-warning {
+    font-size: 13px;
+    color: #c96a00;
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+.cart-row__icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #767677;
+    padding: 4px;
+    display: flex;
+}
+.cart-row__icon-btn:hover { color: #000; }
+.cart-row__icon-btn svg { width: 18px; height: 18px; }
+
+.cart-row__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 16px;
+}
+
+.qty-dropdown {
+    border: 1px solid #999;
+    background: #fff;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 70px;
+}
+
+.cart-row__price {
+    font-size: 15px;
+    font-weight: 700;
+    color: #000;
+}
+
+.cart-divider {
+    border-top: 1px solid #e5e5e5;
+    margin: 32px 0;
+}
+
+/* ── Order Summary ── */
+.cart-summary-box {
+    align-self: start;
+    position: sticky;
+    top: 24px;
+}
+.cart-summary-box__title {
+    font-size: 26px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.3px;
+    margin-bottom: 20px;
+}
+.cart-summary-box__row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 10px;
+}
+.cart-summary-box__row a { color: #2a52be; text-decoration: underline; }
+
+.cart-summary-box__row--total {
+    border-top: 1px solid #ccc;
+    padding-top: 14px;
+    margin-top: 10px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #000;
+}
+.cart-summary-box__tax-note {
+    font-size: 12px;
+    color: #767677;
+    margin-bottom: 20px;
+}
+
+.promo-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f5f5f5;
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-bottom: 18px;
+}
+
+.cart-summary-box__checkout-btn {
+    width: 100%;
+    padding: 18px 20px;
+    background: #000;
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+.cart-summary-box__checkout-btn:hover { background: #222; }
+
+.cart-summary-box__note {
+    font-size: 12px;
+    color: #767677;
+    text-align: center;
+    margin-top: 14px;
+}
+
+.payment-methods-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #333;
+    margin-top: 28px;
+    margin-bottom: 10px;
+}
+.payment-methods-icons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: #555;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cart-empty-state {
+    padding: 100px 0;
+    text-align: center;
+}
+.cart-empty-state__icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 20px;
+    color: #ccc;
+}
+.cart-empty-state__title {
+    font-size: 24px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    color: #000;
+}
+.cart-empty-state__sub {
+    color: #888;
+    margin-bottom: 28px;
+}
+
+@media (max-width: 900px) {
+    .cart-page-layout { grid-template-columns: 1fr; }
+    .cart-row { grid-template-columns: 110px 1fr; }
+    .cart-row__details { grid-template-columns: 1fr; }
+}

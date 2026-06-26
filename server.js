@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 // Sync database schema using the centralized model definitions
-db.sequelize.sync({ force: false }) 
+db.sequelize.sync({ alter: true })
     .then(() => {
         console.log('Database connected and relational models synced successfully.');
         app.listen(PORT, () => {

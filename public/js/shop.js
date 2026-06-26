@@ -3,6 +3,11 @@ $(document).ready(function() {
     const urlParams = new URLSearchParams(window.location.search);
     let currentCategory = urlParams.get('category') || 'all';
 
+const searchQuery = urlParams.get('search') || '';
+    if (searchQuery) {
+        $('#headerSearchInput').val(searchQuery); // pre-fill the search box if coming from a search
+    }
+
     // Highlight the active button matching URL state query row fields
     updateFilterButtonUI(currentCategory);
     loadCatalog(currentCategory);
@@ -37,12 +42,12 @@ $(document).ready(function() {
                 container.empty();
 
                 // Client-side filtering check against category payload structural strings
-                const filteredProducts = products.filter(product => {
-                    if (category === 'all') return true;
-                    const prodCategory = product.Category ? product.Category.name.toLowerCase() : '';
-                    return prodCategory === category.toLowerCase();
+               const filteredProducts = products.filter(product => {
+                    const matchesCategory = category === 'all' || (product.Category && product.Category.name.toLowerCase() === category.toLowerCase());
+                    const matchesSearch = !searchQuery || product.name.toLowerCase().includes(searchQuery.toLowerCase());
+                    return matchesCategory && matchesSearch;
                 });
-
+                
                 if (filteredProducts.length === 0) {
                     renderEmptyMessage(container);
                     return;

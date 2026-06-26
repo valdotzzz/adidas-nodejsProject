@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adidas | Your Cart</title>
+    <title>Adidas | Your Bag</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="js/layout.js"></script>
@@ -11,44 +11,60 @@
 <body>
 
     <section class="products-section">
-        <div class="section-header">
-            <div>
-                <div class="section-label">Shopping</div>
-                <h2 class="section-title">Your Cart</h2>
-            </div>
-        </div>
 
         <div id="cart-loading" style="padding: 60px 0; text-align: center; color: #888;">
-            Loading your cart...
+            Loading your bag...
         </div>
 
-        <div id="cart-empty" style="display:none; padding: 80px 0; text-align: center;">
-            <p style="font-size: 20px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">Your Cart is Empty</p>
-            <p style="color: #888; margin-bottom: 24px;">Looks like you haven't added any shoes yet.</p>
+        <div id="cart-empty" class="cart-empty-state" style="display:none;">
+            <svg class="cart-empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 01-8 0"></path>
+            </svg>
+            <div class="cart-empty-state__title">Your Bag is Empty</div>
+            <p class="cart-empty-state__sub">Looks like you haven't added any shoes yet.</p>
             <a href="shop.html" class="btn btn-dark" style="padding: 14px 28px;">Start Shopping</a>
         </div>
 
-        <div id="cart-layout" style="display:none; display:grid; grid-template-columns: 1fr 360px; gap: 40px;">
+        <div id="cart-layout" class="cart-page-layout" style="display:none;">
 
-            <div id="cart-items"></div>
+            <div>
+                <div class="cart-bag-title">
+                    YOUR BAG <span class="cart-bag-title__count" id="bag-item-count">(0 items)</span>
+                </div>
+                <p class="cart-bag-subtitle">Items in your bag are not reserved — check out now to make them yours.</p>
 
-            <div style="background:#f5f5f5; padding: 28px; align-self: start;">
-                <h3 style="font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 20px;">Order Summary</h3>
+                <div id="cart-items"></div>
+            </div>
 
-                <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:12px;">
-                    <span>Subtotal</span>
+            <div class="cart-summary-box">
+                <div class="cart-summary-box__title">Order Summary</div>
+
+                <div class="cart-summary-box__row">
+                    <span id="summary-item-count">0 items</span>
                     <span id="cart-subtotal">₱0.00</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #ddd;">
-                    <span>Shipping</span>
-                    <span id="cart-shipping">₱150.00</span>
+                <div class="cart-summary-box__row">
+                    <span>Delivery</span>
+                    <span id="cart-shipping">Free</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; margin-bottom:24px;">
+
+                <div class="cart-summary-box__row cart-summary-box__row--total">
                     <span>Total</span>
                     <span id="cart-total">₱0.00</span>
                 </div>
+                <div class="cart-summary-box__tax-note" id="shipping-note"></div>
 
-                <button id="checkoutBtn" class="btn btn-primary" style="width:100%; padding:16px;">Proceed to Checkout</button>
+                <button id="checkoutBtn" class="cart-summary-box__checkout-btn">
+                    <span>Checkout</span>
+                    <span>→</span>
+                </button>
+
+                <div class="payment-methods-label">Accepted Payment Methods</div>
+                <div class="payment-methods-icons">
+                    <span>GCash</span> · <span>VISA</span> · <span>Mastercard</span> · <span>COD</span>
+                </div>
             </div>
 
         </div>
