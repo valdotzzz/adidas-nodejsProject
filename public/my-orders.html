@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas | My Orders</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="js/layout.js"></script>
+</head>
+<body>
+
+    <section class="products-section">
+        <div class="section-header">
+            <div>
+                <div class="section-label">Account</div>
+                <h2 class="section-title" style="font-size: 36px;">My Orders</h2>
+            </div>
+        </div>
+
+        <div class="profile-layout">
+
+            <div class="profile-nav">
+                <a href="profile.html">Profile</a>
+                <a href="my-orders.html" class="active">My Orders</a>
+                <a href="cart.html">My Cart</a>
+            </div>
+
+            <div id="orders-loading" style="color:#888; padding: 40px 0;">Loading your orders...</div>
+
+            <div id="orders-empty" style="display:none; padding: 80px 0; text-align:center;">
+                <p style="font-size:20px; font-weight:800; text-transform:uppercase; color:#fff; margin-bottom:12px;">No Orders Yet</p>
+                <p style="color:#888; margin-bottom:24px;">When you place an order, it'll show up here.</p>
+                <a href="shop.html" class="btn btn-dark" style="padding:14px 28px;">Start Shopping</a>
+            </div>
+
+            <div id="orders-list"></div>
+
+        </div>
+    </section>
+
+    <script src="js/my-orders.js"></script>
+</body>
+</html>

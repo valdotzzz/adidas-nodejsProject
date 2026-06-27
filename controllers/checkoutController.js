@@ -125,6 +125,7 @@ exports.placeOrder = async (req, res) => {
 };
 
 // GET /api/checkout/orders/:id — order confirmation / detail
+// GET /api/checkout/orders/:id — order confirmation / detail
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findOne({
@@ -139,5 +140,20 @@ exports.getOrderById = async (req, res) => {
         return res.status(200).json(order);
     } catch (error) {
         return res.status(500).json({ message: 'Server error fetching order.', error: error.message });
+    }
+};
+
+// GET /api/checkout/orders — list ALL of the logged-in user's past orders
+exports.getMyOrders = async (req, res) => {
+    try {
+        const orders = await Order.findAll({
+            where: { user_id: req.user.id },
+            include: [{ model: OrderItem }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        return res.status(200).json(orders);
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error fetching orders.', error: error.message });
     }
 };

@@ -63,8 +63,13 @@ $(document).ready(function() {
                     }
 
                     // 4. Redirect to the main site index
-                    window.location.href = 'index.html';
-                } else {
+const userRole = (response.user && response.user.role) || response.role || 'customer';
+
+if (userRole === 'admin' || userRole === 'staff') {
+    window.location.href = 'admin/dashboard.html';
+} else {
+    window.location.href = 'index.html';
+}                } else {
                     $('#global-error').text('Invalid server response signature structural payload.').show();
                 }
             },

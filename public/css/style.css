@@ -1130,3 +1130,214 @@ table.dataTable td {
     .cart-row { grid-template-columns: 110px 1fr; }
     .cart-row__details { grid-template-columns: 1fr; }
 }
+
+/* ============================================
+   PROFILE PAGE
+============================================ */
+.profile-layout {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+}
+
+.profile-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid #2a2a2a;
+}
+.profile-nav a {
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+}
+.profile-nav a.active {
+    color: #fff;
+    font-weight: 700;
+    border-bottom-color: #fff;
+}
+.profile-nav a.disabled {
+    color: #444;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.profile-section {
+    background: #111;
+    border: 1px solid #222;
+    padding: 32px;
+    margin-bottom: 24px;
+}
+.profile-section--danger {
+    border-color: #5a1f1f;
+}
+
+.profile-section__title {
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #fff;
+    margin-bottom: 6px;
+}
+.profile-section__sub {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 24px;
+}
+
+.form-group { margin-bottom: 20px; }
+.form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 8px;
+}
+.form-control {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+.form-control:focus { border-color: #fff; }
+.form-control::placeholder { color: #666; }
+
+.form-error {
+    font-size: 12px;
+    color: #ff6b6b;
+    margin-top: 6px;
+    display: none;
+}
+.form-error:not(:empty) { display: block; }
+
+.profile-saved-msg {
+    font-size: 13px;
+    color: #9f9;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ── Address cards ── */
+.address-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.address-card {
+    border: 1px solid #2a2a2a;
+    background: #161616;
+    padding: 18px;
+    position: relative;
+}
+.address-card.is-default { border-color: #fff; }
+.address-card__label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: #222;
+    color: #ccc;
+    padding: 3px 9px;
+    margin-bottom: 10px;
+}
+.address-card__default-tag {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+}
+.address-card__name { font-weight: 700; font-size: 14px; color: #fff; margin-bottom: 4px; }
+.address-card__detail { font-size: 13px; color: #999; line-height: 1.5; margin-bottom: 14px; }
+.address-card__actions {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.address-card__actions button, .address-card__actions a {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+}
+.address-card__actions button:hover, .address-card__actions a:hover { color: #fff; }
+.address-card__actions .danger { color: #ff6b6b; }
+.address-card__actions .danger:hover { color: #ff9b9b; }
+
+.address-empty {
+    grid-column: 1 / -1;
+    padding: 28px;
+    text-align: center;
+    color: #777;
+    background: #161616;
+    font-size: 13px;
+}
+
+/* ── Modal ── */
+.admin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+.admin-modal-overlay.open { display: flex; }
+.admin-modal-window {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 0;
+}
+.admin-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #222;
+}
+.admin-modal-header h3 {
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0;
+}
+.admin-modal-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 18px;
+    cursor: pointer;
+}
+.admin-modal-close:hover { color: #fff; }
+.modal-form-wrapper { padding: 24px; }
+
+@media (max-width: 700px) {
+    .address-grid, .form-row { grid-template-columns: 1fr; }
+}

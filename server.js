@@ -3,7 +3,8 @@ const db = require('./models'); // Loads all models and associations simultaneou
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes'); 
-const adminRoutes = require('./routes/adminRoutes');
+const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
+const adminOrderRoutes = require('./routes/admin/orderRoutes');
 const productRoutes = require('./routes/productRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const profileRoutes = require('./routes/profileRoutes');
@@ -20,7 +21,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routing Middleware
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminDashboardRoutes);
+app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/profile', profileRoutes);
