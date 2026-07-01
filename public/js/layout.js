@@ -99,20 +99,22 @@ function renderFooter() {
                     </div>
                     <div class="footer-col">
                         <h4>Support</h4>
-                        <a href="#">Order Tracker</a>
-                        <a href="#">Returns & Exchanges</a>
-                        <a href="#">Help Center</a>
+                        <a href="my-orders.html">Order Tracker</a>
+                        <a href="my-orders.html">Returns & Exchanges</a>
+                        <a href="mailto:support@adidas-project.com">Help Center</a>
                     </div>
                     <div class="footer-col">
-                        <h4>Company Info</h4>
-                        <a href="#">About Adidas</a>
-                        <a href="#">Careers</a>
-                        <a href="#">Press</a>
+                        <h4>Project Info</h4>
+                        <a href="https://github.com/valdotzzzzz/adidas-nodejsProject" target="_blank" rel="noopener">Source Code</a>
+                        <a href="index.html">About This Project</a>
                     </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 Adidas E-Commerce Project. BSIT Section S-2A.</p>
+                <p>&copy; 2026 Adidas E-Commerce Project — BSIT Section S-2A.</p>
+                <p style="margin-top:6px; font-size:12px; color:#888;">
+                    Developed by: CALVO, YBRAHIM ALEXANDER R., VALDEZ, GEAN CLYDE H., — BSIT-S2A ADVANCE WEB APP PROJECT
+                </p>
             </div>
         </footer>
     `;
@@ -132,12 +134,24 @@ function setupAuthStates() {
         window.location.href = 'index.html';
     });
 
-    // Header search — redirects to shop.html with a ?search= query
     $(document).on('submit', '#headerSearchForm', function(e) {
         e.preventDefault();
         const query = $('#headerSearchInput').val().trim();
         if (query) {
             window.location.href = `shop.html?search=${encodeURIComponent(query)}`;
+        }
+    });
+
+    // Toggle mini cart on click instead of relying only on :hover
+    $(document).on('click', '#cartIconLink', function(e) {
+        e.preventDefault();
+        $('#miniCartDropdown').toggleClass('is-open');
+    });
+
+    // Close it when clicking anywhere outside the cart wrapper
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#miniCartWrapper').length) {
+            $('#miniCartDropdown').removeClass('is-open');
         }
     });
 }

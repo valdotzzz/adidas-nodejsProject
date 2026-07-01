@@ -7,5 +7,6 @@ router.get('/product/:productId', reviewController.getProductReviews); // public
 router.get('/can-review/:productId', protect, reviewController.canReview);
 router.post('/product/:productId', protect, reviewController.createReview);
 router.delete('/:id', protect, reviewController.deleteReview);
+router.put('/:id', protect, reviewController.updateReview);
 
 module.exports = router;

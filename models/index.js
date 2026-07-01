@@ -28,6 +28,14 @@ const db = {
     Sequelize
 };
 
+// Product <-> Review (One-to-Many)
+db.Product.hasMany(db.Review, { foreignKey: 'product_id', onDelete: 'CASCADE' });
+db.Review.belongsTo(db.Product, { foreignKey: 'product_id' });
+
+// User <-> Review (One-to-Many)
+db.User.hasMany(db.Review, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.Review.belongsTo(db.User, { foreignKey: 'user_id' });
+
 // Define explicit model relationships
 db.Category.hasMany(db.Product, { foreignKey: 'category_id', onDelete: 'RESTRICT' });
 db.Product.belongsTo(db.Category, { foreignKey: 'category_id' });

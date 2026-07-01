@@ -69,6 +69,32 @@ exports.createReview = async (req, res) => {
     }
 };
 
+// PUT /api/reviews/:id — edit own review
+exports.updateReview = async (req, res) => {
+    try {
+        const { rating, comment } = req.body;
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(422).json({ message: 'Rating must be between 1 and 5.' });
+        }
+
+        const review = await Review.findOne({
+            where: { id: req.params.id, user_id: req.user.id }
+        });
+
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found.' });
+        }
+
+        review.rating = rating;
+        review.comment = comment;
+        await review.save();
+
+        return res.status(200).json({ message: 'Review updated successfully.', review });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error updating review.', error: error.message });
+    }
+};
 // DELETE /api/reviews/:id — delete own review
 exports.deleteReview = async (req, res) => {
     try {
