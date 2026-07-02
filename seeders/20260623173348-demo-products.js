@@ -2,9 +2,28 @@
 
 module.exports = {
   async up (queryInterface, Sequelize) {
-    return queryInterface.bulkInsert('products', [
+    // 1. Look up all categories so we can reference their real database IDs by name
+    const categories = await queryInterface.sequelize.query(
+      `SELECT id, name FROM categories;`,
+      { type: Sequelize.QueryTypes.SELECT }
+    );
+
+    // Helper: find a category's real DB id from its name
+    const categoryIdFor = (name) => {
+      const match = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
+      if (!match) {
+        throw new Error(`Seeder error: no category found with name "${name}". Ensure categories seeder ran first!`);
+      }
+      return match.id;
+    };
+
+    // Distinct timestamps to simulate record creation followed by a later update
+    const createdDate = new Date('2026-05-01T08:00:00Z');
+    const updatedDate = new Date('2026-06-23T17:33:48Z');
+
+    const products = [
       // ==========================================
-      // RUNNING CATEGORY (ID: 1)
+      // RUNNING CATEGORY
       // ==========================================
       {
         name: 'Ultraboost Light',
@@ -13,9 +32,9 @@ module.exports = {
         price: 10000.00,
         gender: 'unisex',
         is_exclusive: true,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Pureboost 23',
@@ -24,9 +43,9 @@ module.exports = {
         price: 7000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Adizero Adios Pro 3',
@@ -35,9 +54,9 @@ module.exports = {
         price: 13000.00,
         gender: 'unisex',
         is_exclusive: true,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Supernova Stride',
@@ -46,9 +65,9 @@ module.exports = {
         price: 5300.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Questar Flow Shoes',
@@ -57,9 +76,9 @@ module.exports = {
         price: 4500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Duramo Speed',
@@ -68,9 +87,9 @@ module.exports = {
         price: 4300.00,
         gender: 'kids',
         is_exclusive: false,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Response Runner',
@@ -79,13 +98,13 @@ module.exports = {
         price: 3300.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Running'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
 
       // ==========================================
-      // LIFESTYLE CATEGORY (ID: 2)
+      // LIFESTYLE CATEGORY
       // ==========================================
       {
         name: 'Samba OG Black',
@@ -94,9 +113,9 @@ module.exports = {
         price: 5500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Gazelle Bold',
@@ -105,9 +124,9 @@ module.exports = {
         price: 6500.00,
         gender: 'women',
         is_exclusive: true,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Superstar Classic White',
@@ -116,9 +135,9 @@ module.exports = {
         price: 5300.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Forum Low',
@@ -127,9 +146,9 @@ module.exports = {
         price: 5500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'NMD_R1 V3',
@@ -138,9 +157,9 @@ module.exports = {
         price: 8500.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Campus 00s Core Black',
@@ -149,9 +168,9 @@ module.exports = {
         price: 5500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Stan Smith Lux',
@@ -160,13 +179,13 @@ module.exports = {
         price: 8000.00,
         gender: 'men',
         is_exclusive: true,
-        category_id: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Lifestyle'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
 
       // ==========================================
-      // BASKETBALL CATEGORY (ID: 3)
+      // BASKETBALL CATEGORY
       // ==========================================
       {
         name: 'Harden Volume 7',
@@ -175,9 +194,9 @@ module.exports = {
         price: 8500.00,
         gender: 'men',
         is_exclusive: true,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Dame 8 EXTPLY',
@@ -186,9 +205,9 @@ module.exports = {
         price: 7500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'D.O.N. Issue #5',
@@ -197,9 +216,9 @@ module.exports = {
         price: 7000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Trae Young 3',
@@ -208,9 +227,9 @@ module.exports = {
         price: 8000.00,
         gender: 'men',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Pro Boost Low',
@@ -219,9 +238,9 @@ module.exports = {
         price: 6000.00,
         gender: 'women',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Exhibit B Mid',
@@ -230,9 +249,9 @@ module.exports = {
         price: 6500.00,
         gender: 'unisex',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       },
       {
         name: 'Cross Em Up 5 Wide',
@@ -241,13 +260,13 @@ module.exports = {
         price: 3500.00,
         gender: 'kids',
         is_exclusive: false,
-        category_id: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        category_id: categoryIdFor('Basketball'),
+        createdAt: createdDate,
+        updatedAt: updatedDate
       }
-    ], { 
-      ignoreDuplicates: true 
-    });
+    ];
+
+    return queryInterface.bulkInsert('products', products, { ignoreDuplicates: true });
   },
 
   async down (queryInterface, Sequelize) {

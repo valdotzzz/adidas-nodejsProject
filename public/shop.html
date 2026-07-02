@@ -26,7 +26,26 @@
         </div>
 
         <div class="products-grid" id="catalog-grid"></div>
-    </section>
+
+        <!-- Numbered pagination controls -->
+        <div id="catalog-pagination" style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:40px;"></div>
+
+        <!-- Infinite scroll trigger (invisible sentinel div watched by scroll listener) -->
+        <div id="load-more-trigger" style="display:none; height:1px;"></div>
+
+        <!-- Spinner shown while next page loads -->
+        <div id="load-more-spinner" style="display:none; text-align:center; padding:32px 0;">
+            <div style="display:inline-block; width:28px; height:28px; border:3px solid #333; border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite;"></div>
+        </div>
+
+        <!-- End-of-catalog message, revealed when all pages are loaded -->
+        <div id="all-loaded-msg" style="display:none; text-align:center; padding:32px 0; color:#555; font-size:11px; text-transform:uppercase; letter-spacing:2px;">
+            — End of Collection —
+        </div>
+
+        <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
 
     <script src="js/shop.js"></script>
 </body>

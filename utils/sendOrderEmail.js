@@ -19,7 +19,6 @@ const transporter               = require('../config/mailer');
 // Change these three lines in sendOrderEmail.js:
 const orderConfirmationTemplate = require('./orderConfirmation');
 const orderStatusTemplate       = require('./orderStatus');
-const receiptTemplate           = require('./reciept');   // matches your filename
 
 /* ── PDF helper ─────────────────────────────────────────── */
 async function generatePdfBuffer(order) {
