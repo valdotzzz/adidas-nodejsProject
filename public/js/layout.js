@@ -127,6 +127,14 @@ function setupAuthStates() {
         $('#guest-menu').hide();
         $('#user-menu').show();
         loadCartCount(token);
+
+        // Show admin dashboard link if user has admin or staff role
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.role === 'admin' || payload.role === 'staff') {
+                $('#user-menu').prepend('<a href="admin/dashboard.html" class="btn-link" style="color:#ff4444; font-weight:700;">Admin</a>');
+            }
+        } catch(e) {}
     }
 
     $(document).on('click', '#logoutBtn', function() {

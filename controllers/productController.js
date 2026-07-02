@@ -22,6 +22,17 @@ exports.createProduct = async (req, res) => {
             is_exclusive: is_exclusive || false,
             category_id
         });
+        
+        // Save uploaded images if any
+        if (req.files && req.files.length > 0) {
+            const imageData = req.files.map(file => ({
+                product_id: newProduct.id,
+                image_path: `uploads/${file.filename}`,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }));
+            await ProductImage.bulkCreate(imageData);
+        }
 
         // Bulk insert associated structural variants if provided
         if (variants && variants.length > 0) {

@@ -32,6 +32,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/uploads', express.static('public/uploads'));
 
 
 // ...

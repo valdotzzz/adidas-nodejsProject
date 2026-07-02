@@ -1,85 +1,178 @@
-$(document).ready(function() {
+$(document).ready(function () {
     const token = localStorage.getItem('token');
+    if (!token) { window.location.href = '../login.html'; return; }
 
-    if (!token) {
-        window.location.href = '../login.html';
-        return;
-    }
+    let productsTable, categoriesTable, ordersTable, usersTable, auditTable;
+    let allProductsData = [];
+    let barChart, lineChart, pieChart;
 
-    let productsTable, categoriesTable, ordersTable, usersTable;
-
-    // Initialize Active Tables On Boot
+    // Boot
+    loadDashboard();
     initProductsTable();
     initCategoriesTable();
     initOrdersTable();
     initUsersTable();
+    initAuditTable();
     preloadCategoryDropdown();
+    populateFilterCategoryDropdown();
 
-    /* ==========================================================================
-       VIEW SHIFTING TOGGLE CONTROLS
-       ========================================================================== */
-    $('#sidebar-products-btn').on('click', function(e) {
-        e.preventDefault();
+    /* =================================================================
+       SIDEBAR NAVIGATION
+    ================================================================= */
+    function showPanel(panelId, btnId) {
         $('.nav-item').removeClass('active');
-        $(this).addClass('active');
+        $(btnId).addClass('active');
         $('.admin-view-panel').hide();
-        $('#products-section').show();
-        productsTable.ajax.reload(null, false);
-    });
+        $(panelId).show();
+    }
 
-    $('#sidebar-categories-btn').on('click', function(e) {
-        e.preventDefault();
-        $('.nav-item').removeClass('active');
-        $(this).addClass('active');
-        $('.admin-view-panel').hide();
-        $('#categories-section').show();
-        categoriesTable.ajax.reload(null, false);
-    });
+    $('#sidebar-dashboard-btn').on('click', function (e) { e.preventDefault(); showPanel('#dashboard-section', '#sidebar-dashboard-btn'); loadDashboard(); });
+    $('#sidebar-products-btn').on('click', function (e) { e.preventDefault(); showPanel('#products-section', '#sidebar-products-btn'); productsTable.ajax.reload(null, false); });
+    $('#sidebar-categories-btn').on('click', function (e) { e.preventDefault(); showPanel('#categories-section', '#sidebar-categories-btn'); categoriesTable.ajax.reload(null, false); });
+    $('#sidebar-orders-btn').on('click', function (e) { e.preventDefault(); showPanel('#orders-section', '#sidebar-orders-btn'); ordersTable.ajax.reload(null, false); });
+    $('#sidebar-users-btn').on('click', function (e) { e.preventDefault(); showPanel('#users-section', '#sidebar-users-btn'); usersTable.ajax.reload(null, false); });
+    $('#sidebar-audit-btn').on('click', function (e) { e.preventDefault(); showPanel('#audit-section', '#sidebar-audit-btn'); auditTable.ajax.reload(null, false); });
 
-    $('#sidebar-orders-btn').on('click', function(e) {
-    e.preventDefault();
-    $('.nav-item').removeClass('active');
-    $(this).addClass('active');
-    $('.admin-view-panel').hide();
-    $('#orders-section').show();
-    ordersTable.ajax.reload(null, false);
-    });
+    /* =================================================================
+       CONFIRM MODAL (replaces window.confirm)
+    ================================================================= */
+    function showConfirm(message, onYes) {
+        $('#confirmModalMessage').text(message);
+        $('#confirmModal').css('display', 'flex');
+        $('#confirmModalYes').off('click').on('click', function () {
+            $('#confirmModal').hide();
+            onYes();
+        });
+        $('#confirmModalNo, #closeConfirmModalBtn').off('click').on('click', function () {
+            $('#confirmModal').hide();
+        });
+    }
 
-    $('#sidebar-users-btn').on('click', function(e) {
-        e.preventDefault();
-        $('.nav-item').removeClass('active');
-        $(this).addClass('active');
-        $('.admin-view-panel').hide();
-        $('#users-section').show();
-        usersTable.ajax.reload(null, false);
-    });
+    /* =================================================================
+       TOAST NOTIFICATION (replaces alert)
+    ================================================================= */
+    function showToast(message, type) {
+        const colour = type === 'error' ? '#e53e3e' : '#2f8f4e';
+        const toast = $(`<div style="position:fixed; bottom:24px; right:24px; background:${colour}; color:#fff; padding:14px 20px; font-size:13px; font-weight:600; z-index:9999; letter-spacing:0.5px; max-width:340px;">${message}</div>`);
+        $('body').append(toast);
+        setTimeout(() => toast.fadeOut(400, () => toast.remove()), 3500);
+    }
 
-    /* ==========================================================================
-       PRODUCTS DATATABLE INTERACTION LAYER
-       ========================================================================== */
+    /* =================================================================
+       INLINE FIELD VALIDATION HELPERS
+    ================================================================= */
+    function clearErrors() { $('.field-error').text(''); }
+
+    function setError(fieldId, msg) { $(`#err-${fieldId}`).text(msg); }
+
+    function validateProduct() {
+        let valid = true;
+        clearErrors();
+        if (!$('#prod_name').val().trim()) { setError('prod_name', 'Product name is required.'); valid = false; }
+        if (!$('#prod_style_code').val().trim()) { setError('prod_style_code', 'Style code is required.'); valid = false; }
+        if (!$('#prod_category_id').val() || $('#prod_category_id').val() === '__new__') { setError('prod_category_id', 'Please select a category.'); valid = false; }
+        if (!$('#prod_price').val() || parseFloat($('#prod_price').val()) <= 0) { setError('prod_price', 'Enter a valid price.'); valid = false; }
+        return valid;
+    }
+
+    function validateCategory() {
+        let valid = true;
+        clearErrors();
+        if (!$('#cat_name').val().trim()) { setError('cat_name', 'Category name is required.'); valid = false; }
+        return valid;
+    }
+
+    /* =================================================================
+       DASHBOARD — STATS + CHARTS
+    ================================================================= */
+    function loadDashboard() {
+        $.ajax({
+            url: '/api/admin/dashboard', method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (d) {
+                $('#stat-revenue').text(`₱${parseFloat(d.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+                $('#stat-orders').text(d.new_orders_30d);
+                $('#stat-lowstock').text(d.low_stock_variants);
+                $('#stat-users').text(d.total_users);
+            }
+        });
+        loadCharts($('#chartPeriodSelect').val());
+    }
+
+    $('#chartPeriodSelect').on('change', function () { loadCharts($(this).val()); });
+
+    function loadCharts(days) {
+        $.ajax({
+            url: `/api/admin/dashboard/sales-chart?days=${days}`, method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (rows) {
+                const labels = rows.map(r => r.date);
+                const revenues = rows.map(r => parseFloat(r.revenue));
+                const orders = rows.map(r => parseInt(r.orders));
+
+                if (barChart) barChart.destroy();
+                barChart = new Chart(document.getElementById('barChart'), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Daily Revenue (₱)', data: revenues, backgroundColor: 'rgba(255,255,255,0.7)' }]
+                    },
+                    options: { plugins: { legend: { labels: { color: '#ccc' } } }, scales: { x: { ticks: { color: '#aaa' } }, y: { ticks: { color: '#aaa' } } } }
+                });
+
+                if (lineChart) lineChart.destroy();
+                lineChart = new Chart(document.getElementById('lineChart'), {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Orders', data: orders, borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.1)', tension: 0.3, fill: true }]
+                    },
+                    options: { plugins: { legend: { labels: { color: '#ccc' } } }, scales: { x: { ticks: { color: '#aaa' } }, y: { ticks: { color: '#aaa' } } } }
+                });
+            }
+        });
+
+        $.ajax({
+            url: '/api/admin/dashboard/category-chart', method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (rows) {
+                if (pieChart) pieChart.destroy();
+                pieChart = new Chart(document.getElementById('pieChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: rows.map(r => r.category),
+                        datasets: [{ data: rows.map(r => parseFloat(r.revenue)), backgroundColor: ['#ffffff', '#aaaaaa', '#555555', '#333333', '#ff4444'] }]
+                    },
+                    options: { plugins: { legend: { labels: { color: '#ccc' } } } }
+                });
+            }
+        });
+    }
+
+    /* =================================================================
+       PRODUCTS TABLE
+    ================================================================= */
     function initProductsTable() {
         productsTable = $('#productsSecureTable').DataTable({
             ajax: {
-                url: '/api/products',
-                method: 'GET',
-                dataSrc: '',
+                url: '/api/products', method: 'GET', dataSrc: '',
                 headers: { 'Authorization': `Bearer ${token}` },
-                error: handleAuthFailure
+                error: handleAuthFailure,
+                dataSrc: function (json) { allProductsData = json; return json; }
             },
             columns: [
                 { data: 'id' },
-                { data: 'style_code', render: data => `<strong style="color: #aaaaaa;">${data}</strong>` },
+                { data: 'style_code', render: d => `<strong style="color:#aaa;">${d}</strong>` },
                 { data: 'name' },
-                { data: 'Category', render: data => data ? data.name : 'Unassigned' },
-                { data: 'gender', render: data => `<span style="text-transform: uppercase; font-size:11px;">${data}</span>` },
-                { data: 'price', render: data => `₱${parseFloat(data).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+                { data: 'Category', render: d => d ? d.name : 'Unassigned' },
+                { data: 'gender', render: d => `<span style="text-transform:uppercase; font-size:11px;">${d}</span>` },
+                { data: 'price', render: d => `₱${parseFloat(d).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
                 {
-                    data: 'id',
-                    orderable: false,
-                    render: data => `
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-dark edit-product-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px;">Edit</button>
-                            <button class="btn btn-dark delete-product-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px; color: #ff4444;">Delete</button>
+                    data: 'id', orderable: false,
+                    render: d => `
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark edit-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
+                            <button class="btn btn-dark delete-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
                         </div>`
                 }
             ],
@@ -87,140 +180,208 @@ $(document).ready(function() {
         });
     }
 
-    /* ==========================================================================
-       CATEGORIES DATATABLE INTERACTION LAYER
-       ========================================================================== */
-    function initCategoriesTable() {
-        categoriesTable = $('#categoriesSecureTable').DataTable({
-            ajax: {
-                url: '/api/categories',
-                method: 'GET',
-                dataSrc: '',
-                headers: { 'Authorization': `Bearer ${token}` },
-                error: handleAuthFailure
-            },
-            columns: [
-                { data: 'id' },
-                { data: 'name', render: data => `<strong style="color:#ffffff;">${data}</strong>` },
-                { data: 'createdAt', render: data => new Date(data).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
-                {
-                    data: 'id',
-                    orderable: false,
-                    render: data => `
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-dark edit-category-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px;">Edit</button>
-                            <button class="btn btn-dark delete-category-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px; color: #ff4444;">Delete</button>
-                        </div>`
-                }
-            ],
-            responsive: true
-        });
-    }
+    // Product filters
+    $('#apply-product-filters').on('click', function () {
+        const cat = $('#filter-category').val().toLowerCase();
+        const gender = $('#filter-gender').val().toLowerCase();
+        const style = $('#filter-style').val().toLowerCase();
+        const minP = parseFloat($('#filter-price-min').val()) || 0;
+        const maxP = parseFloat($('#filter-price-max').val()) || Infinity;
 
-    /* ==========================================================================
-       CRUD OPERATIONAL CONTROLS & AJAX ACTIONS
-       ========================================================================== */
-    function initOrdersTable() {
-        ordersTable = $('#ordersSecureTable').DataTable({
-            ajax: {
-                url: '/api/admin/orders',
-                method: 'GET',
-                dataSrc: '',
-                headers: { 'Authorization': `Bearer ${token}` },
-                error: handleAuthFailure
-            },
-            columns: [
-                { data: 'id', render: data => `#${String(data).padStart(6, '0')}` },
-                { data: 'User', render: data => data ? `${data.name}<br><span style="color:#777; font-size:11px;">${data.email}</span>` : 'Guest' },
-                { data: 'OrderItems', render: data => `${data ? data.length : 0} item(s)` },
-                { data: 'total_amount', render: data => `₱${parseFloat(data).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-                {
-                    data: 'status',
-                    render: (data, type, row) => `
-                        <select class="form-select-control order-status-select" data-id="${row.id}" style="padding:6px; background-color:#1a1a1a; border:1px solid #333333; color:#ffffff;">
-                            <option value="pending" ${data === 'pending' ? 'selected' : ''}>Pending</option>
-                            <option value="completed" ${data === 'completed' ? 'selected' : ''}>Completed</option>
-                            <option value="cancelled" ${data === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-                        </select>`
-                },
-                { data: 'createdAt', render: data => new Date(data).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
-                {
-                    data: 'id',
-                    orderable: false,
-                    render: data => `<button class="btn btn-dark delete-order-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px; color: #ff4444;">Delete</button>`
-                }
-                ],
-                responsive: true
-                });
-    }
-
-
-
-                $(document).on('click', '.delete-order-row', function() {
-                    const id = $(this).data('id');
-                    if (confirm('Delete this order record? It will be hidden from the ledger.')) {
-                        $.ajax({
-                            url: `/api/admin/orders/${id}`,
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` },
-                            success: function() { ordersTable.ajax.reload(null, false); }
-                        });
-                    }
-                });
-
-    $(document).on('change', '.order-status-select', function() {
-        const id = $(this).data('id');
-        const status = $(this).val();
-
-        $.ajax({
-            url: `/api/admin/orders/${id}`,
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify({ status }),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function() { ordersTable.ajax.reload(null, false); },
-            error: function(xhr) { alert(`Order update error: ${xhr.responseJSON?.message || xhr.statusText}`); }
+        productsTable.rows().every(function () {
+            const d = this.data();
+            const catMatch = !cat || (d.Category && d.Category.name.toLowerCase() === cat);
+            const genderMatch = !gender || d.gender === gender;
+            const styleMatch = !style || d.style_code.toLowerCase().includes(style);
+            const priceMatch = parseFloat(d.price) >= minP && parseFloat(d.price) <= maxP;
+            $(this.node()).toggle(catMatch && genderMatch && styleMatch && priceMatch);
         });
     });
 
+    $('#clear-product-filters').on('click', function () {
+        $('#filter-category, #filter-gender').val('');
+        $('#filter-style, #filter-price-min, #filter-price-max').val('');
+        productsTable.rows().every(function () { $(this.node()).show(); });
+    });
+
+    function populateFilterCategoryDropdown() {
+        $.ajax({
+            url: '/api/categories', method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (cats) {
+                cats.forEach(c => $('#filter-category').append(`<option value="${c.name.toLowerCase()}">${c.name}</option>`));
+            }
+        });
+    }
+
+    // Image preview
+    $(document).on('change', '#prod_images', function () {
+        const preview = $('#prod_image_preview').empty();
+        Array.from(this.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = e => preview.append(`<img src="${e.target.result}" style="width:64px; height:64px; object-fit:cover; border:1px solid #333;">`);
+            reader.readAsDataURL(file);
+        });
+    });
+
+    /* =================================================================
+       CATEGORIES TABLE
+    ================================================================= */
+    function initCategoriesTable() {
+        categoriesTable = $('#categoriesSecureTable').DataTable({
+            ajax: {
+                url: '/api/categories', method: 'GET', dataSrc: '',
+                headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
+            },
+            columns: [
+                { data: 'id' },
+                { data: 'name', render: d => `<strong style="color:#fff;">${d}</strong>` },
+                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                {
+                    data: 'id', orderable: false,
+                    render: d => `
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark edit-category-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
+                            <button class="btn btn-dark delete-category-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
+                        </div>`
+                }
+            ],
+            responsive: true
+        });
+    }
+
+    /* =================================================================
+       ORDERS TABLE
+    ================================================================= */
+    function initOrdersTable() {
+        ordersTable = $('#ordersSecureTable').DataTable({
+            ajax: {
+                url: '/api/admin/orders', method: 'GET', dataSrc: '',
+                headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
+            },
+            columns: [
+                { data: 'id', render: d => `#${String(d).padStart(6, '0')}` },
+                { data: 'User', render: d => d ? `${d.name}<br><span style="color:#777; font-size:11px;">${d.email}</span>` : 'Guest' },
+                {
+                    data: null, orderable: false,
+                    render: (d, t, row) => `<button class="btn btn-dark view-order-items" data-id="${row.id}" style="padding:4px 10px; font-size:11px;">${row.OrderItems ? row.OrderItems.length : 0} item(s)</button>`
+                },
+                { data: 'total_amount', render: d => `₱${parseFloat(d).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+                {
+                    data: 'status', render: (d, t, row) => `
+                        <select class="form-select-control order-status-select" data-id="${row.id}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                            <option value="pending" ${d === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="completed" ${d === 'completed' ? 'selected' : ''}>Completed</option>
+                            <option value="cancelled" ${d === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>`
+                },
+                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
+                {
+                    data: 'id', orderable: false,
+                    render: d => `<button class="btn btn-dark delete-order-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>`
+                }
+            ],
+            responsive: true
+        });
+    }
+
+    // Order items pop-up
+    $(document).on('click', '.view-order-items', function () {
+        const id = $(this).data('id');
+        $.ajax({
+            url: `/api/admin/orders/${id}`, method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (order) {
+                $('#orderItemsModalTitle').text(`Order #${String(order.id).padStart(6, '0')} — Items`);
+                const items = order.OrderItems || [];
+                let html = `<table style="width:100%; border-collapse:collapse; font-size:13px; color:#ccc;">
+                    <thead><tr style="border-bottom:1px solid #333;">
+                        <th style="padding:8px 4px; text-align:left;">Product</th>
+                        <th style="padding:8px 4px;">Size</th>
+                        <th style="padding:8px 4px;">Colorway</th>
+                        <th style="padding:8px 4px;">Qty</th>
+                        <th style="padding:8px 4px; text-align:right;">Price</th>
+                    </tr></thead><tbody>`;
+                items.forEach(item => {
+                    html += `<tr style="border-bottom:1px solid #1a1a1a;">
+                        <td style="padding:10px 4px;">${item.product_name}</td>
+                        <td style="padding:10px 4px; text-align:center;">${item.size_type} ${item.size_value}</td>
+                        <td style="padding:10px 4px; text-align:center;">${item.colorway || '—'}</td>
+                        <td style="padding:10px 4px; text-align:center;">${item.quantity}</td>
+                        <td style="padding:10px 4px; text-align:right;">₱${parseFloat(item.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>
+                    <div style="text-align:right; margin-top:16px; font-weight:700; color:#fff;">
+                        Total: ₱${parseFloat(order.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>`;
+                $('#orderItemsModalBody').html(html);
+                $('#orderItemsModal').css('display', 'flex');
+            }
+        });
+    });
+
+    $('#closeOrderItemsModalBtn').on('click', function () { $('#orderItemsModal').hide(); });
+
+    $(document).on('change', '.order-status-select', function () {
+        const id = $(this).data('id');
+        const status = $(this).val();
+        $.ajax({
+            url: `/api/admin/orders/${id}`, method: 'PUT',
+            contentType: 'application/json', data: JSON.stringify({ status }),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () { showToast('Order status updated.', 'success'); ordersTable.ajax.reload(null, false); },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Update failed.', 'error'); }
+        });
+    });
+
+    $(document).on('click', '.delete-order-row', function () {
+        const id = $(this).data('id');
+        showConfirm('Delete this order? It will be hidden from the ledger.', function () {
+            $.ajax({
+                url: `/api/admin/orders/${id}`, method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Order deleted.', 'success'); ordersTable.ajax.reload(null, false); }
+            });
+        });
+    });
+
+    /* =================================================================
+       USERS TABLE
+    ================================================================= */
     function initUsersTable() {
         usersTable = $('#usersSecureTable').DataTable({
             ajax: {
-                url: '/api/admin/users',
-                method: 'GET',
-                dataSrc: '',
-                headers: { 'Authorization': `Bearer ${token}` },
-                error: handleAuthFailure
+                url: '/api/admin/users', method: 'GET', dataSrc: '',
+                headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
             },
             columns: [
                 { data: 'id' },
                 { data: 'name' },
                 { data: 'email' },
                 {
-                    data: 'role',
-                    render: (data, type, row) => `
-                        <select class="form-select-control user-role-select" data-id="${row.id}" style="padding:6px; background-color:#1a1a1a; border:1px solid #333333; color:#ffffff;">
-                            <option value="customer" ${data === 'customer' ? 'selected' : ''}>Customer</option>
-                            <option value="staff" ${data === 'staff' ? 'selected' : ''}>Staff</option>
-                            <option value="admin" ${data === 'admin' ? 'selected' : ''}>Admin</option>
+                    data: 'role', render: (d, t, row) => `
+                        <select class="form-select-control user-role-select" data-id="${row.id}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                            <option value="customer" ${d === 'customer' ? 'selected' : ''}>Customer</option>
+                            <option value="staff" ${d === 'staff' ? 'selected' : ''}>Staff</option>
+                            <option value="admin" ${d === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>`
                 },
                 {
                     data: 'status',
-                    render: data => data === 'active'
+                    render: d => d === 'active'
                         ? `<span style="color:#4caf50; text-transform:uppercase; font-size:11px;">Active</span>`
                         : `<span style="color:#ff4444; text-transform:uppercase; font-size:11px;">Deactivated</span>`
                 },
-                { data: 'createdAt', render: data => new Date(data).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
+                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
                 {
-                    data: 'id',
-                    orderable: false,
-                    render: (data, type, row) => `
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-dark toggle-user-status" data-id="${data}" style="padding: 6px 12px; font-size: 11px; ${row.status === 'active' ? 'color:#ff4444;' : 'color:#4caf50;'}">
+                    data: 'id', orderable: false,
+                    render: (d, t, row) => `
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark toggle-user-status" data-id="${d}" style="padding:6px 12px; font-size:11px; ${row.status === 'active' ? 'color:#ff4444;' : 'color:#4caf50;'}">
                                 ${row.status === 'active' ? 'Deactivate' : 'Reactivate'}
                             </button>
-                            <button class="btn btn-dark delete-user-row" data-id="${data}" style="padding: 6px 12px; font-size: 11px; color: #ff4444;">Delete</button>
+                            <button class="btn btn-dark delete-user-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
                         </div>`
                 }
             ],
@@ -228,12 +389,98 @@ $(document).ready(function() {
         });
     }
 
+    $(document).on('change', '.user-role-select', function () {
+        const id = $(this).data('id');
+        const role = $(this).val();
+        $.ajax({
+            url: `/api/admin/users/${id}/role`, method: 'PATCH',
+            contentType: 'application/json', data: JSON.stringify({ role }),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () { showToast('Role updated.', 'success'); usersTable.ajax.reload(null, false); },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Role update failed.', 'error'); usersTable.ajax.reload(null, false); }
+        });
+    });
+
+    $(document).on('click', '.toggle-user-status', function () {
+        const id = $(this).data('id');
+        showConfirm('Change this user\'s account status?', function () {
+            $.ajax({
+                url: `/api/admin/users/${id}/status`, method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Status updated.', 'success'); usersTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Failed.', 'error'); }
+            });
+        });
+    });
+
+    $(document).on('click', '.delete-user-row', function () {
+        const id = $(this).data('id');
+        showConfirm('Delete this user account? It will be hidden from the roster.', function () {
+            $.ajax({
+                url: `/api/admin/users/${id}`, method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('User deleted.', 'success'); usersTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
+            });
+        });
+    });
+
+    /* =================================================================
+       AUDIT LOGS TABLE
+    ================================================================= */
+    function initAuditTable(category) {
+        if (auditTable) auditTable.destroy();
+        auditTable = $('#auditLogsTable').DataTable({
+            ajax: {
+                url: `/api/admin/dashboard/audit-logs${category ? '?category=' + category : ''}`,
+                method: 'GET', dataSrc: '',
+                headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
+            },
+            columns: [
+                { data: 'createdAt', render: d => new Date(d).toLocaleString('en-US') },
+                { data: 'category', render: d => `<span style="text-transform:uppercase; font-size:10px; letter-spacing:1px; color:#aaa;">${d}</span>` },
+                { data: 'action', render: d => `<strong>${d}</strong>` },
+                { data: 'User', render: d => d ? `${d.name}<br><span style="color:#777; font-size:11px;">${d.email}</span>` : '—' },
+                { data: 'description' }
+            ],
+            order: [[0, 'desc']],
+            responsive: true
+        });
+    }
+
+    $(document).on('click', '.audit-filter-btn', function () {
+        $('.audit-filter-btn').removeClass('active');
+        $(this).addClass('active');
+        initAuditTable($(this).data('cat'));
+    });
+
+    /* =================================================================
+       MODAL — OPEN / CLOSE
+    ================================================================= */
+    $('#openCreateProductBtn').on('click', function () {
+        resetFormStates();
+        $('#modalTargetTitle').text('Register Product Variant');
+        $('#productCrudForm').show();
+        $('#crudModal').css('display', 'flex');
+    });
+
+    $('#openCreateCategoryBtn').on('click', function () {
+        resetFormStates();
+        $('#modalTargetTitle').text('Define Category Segment');
+        $('#categoryCrudForm').show();
+        $('#crudModal').css('display', 'flex');
+    });
+
+    $('#closeModalBtn').on('click', function () { $('#crudModal').hide(); resetFormStates(); });
+
+    /* =================================================================
+       CATEGORY DROPDOWN (with inline create)
+    ================================================================= */
     function preloadCategoryDropdown() {
         $.ajax({
-            url: '/api/categories',
-            method: 'GET',
+            url: '/api/categories', method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function(categories) {
+            success: function (categories) {
                 const select = $('#prod_category_id');
                 const currentVal = select.val();
                 select.empty();
@@ -244,38 +491,28 @@ $(document).ready(function() {
         });
     }
 
-    $(document).on('change', '#prod_category_id', function() {
+    $(document).on('change', '#prod_category_id', function () {
         if ($(this).val() !== '__new__') return;
-
-        const name = prompt('New category name:');
-        if (!name || !name.trim()) {
-            $(this).val('');
-            return;
-        }
-
+        const name = window.prompt('New category name:');
+        if (!name || !name.trim()) { $(this).val(''); return; }
         $.ajax({
-            url: '/api/categories',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ name: name.trim() }),
+            url: '/api/categories', method: 'POST',
+            contentType: 'application/json', data: JSON.stringify({ name: name.trim() }),
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function(response) {
+            success: function (response) {
                 categoriesTable.ajax.reload(null, false);
                 preloadCategoryDropdownThenSelect(response.category.id);
+                showToast(`Category "${response.category.name}" created.`, 'success');
             },
-            error: function(xhr) {
-                alert(`Category creation error: ${xhr.responseJSON?.message || xhr.statusText}`);
-                $('#prod_category_id').val('');
-            }
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Failed.', 'error'); $('#prod_category_id').val(''); }
         });
     });
 
     function preloadCategoryDropdownThenSelect(newCategoryId) {
         $.ajax({
-            url: '/api/categories',
-            method: 'GET',
+            url: '/api/categories', method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function(categories) {
+            success: function (categories) {
                 const select = $('#prod_category_id');
                 select.empty();
                 categories.forEach(c => select.append(`<option value="${c.id}">${c.name}</option>`));
@@ -285,224 +522,155 @@ $(document).ready(function() {
         });
     }
 
-    $(document).on('change', '.user-role-select', function() {
-        const id = $(this).data('id');
-        const role = $(this).val();
-
-        $.ajax({
-            url: `/api/admin/users/${id}/role`,
-            method: 'PATCH',
-            contentType: 'application/json',
-            data: JSON.stringify({ role }),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function() { usersTable.ajax.reload(null, false); },
-            error: function(xhr) {
-                alert(`Role update error: ${xhr.responseJSON?.message || xhr.statusText}`);
-                usersTable.ajax.reload(null, false);
-            }
-        });
-    });
-
-    $(document).on('click', '.toggle-user-status', function() {
-        const id = $(this).data('id');
-        if (!confirm('Are you sure you want to change this user\'s account status?')) return;
-
-        $.ajax({
-            url: `/api/admin/users/${id}/status`,
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function() { usersTable.ajax.reload(null, false); },
-            error: function(xhr) { alert(`Status update error: ${xhr.responseJSON?.message || xhr.statusText}`); }
-        });
-    });
-
-    $(document).on('click', '.delete-user-row', function() {
-        const id = $(this).data('id');
-        if (confirm('Delete this user account? It will be hidden from the roster.')) {
-            $.ajax({
-                url: `/api/admin/users/${id}`,
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
-                success: function() { usersTable.ajax.reload(null, false); },
-                error: function(xhr) { alert(`Delete error: ${xhr.responseJSON?.message || xhr.statusText}`); }
-            });
-        }
-    });
-
-    // Trigger Clean Product Modal Definition
-    $('#openCreateProductBtn').on('click', function() {
-        resetFormStates();
-        $('#modalTargetTitle').text('Register Product Variant');
-        $('#productCrudForm').show();
-        $('#crudModal').css('display', 'flex');
-    });
-
-    // Trigger Clean Category Modal Definition
-    $('#openCreateCategoryBtn').on('click', function() {
-        resetFormStates();
-        $('#modalTargetTitle').text('Define Category Segment');
-        $('#categoryCrudForm').show();
-        $('#crudModal').css('display', 'flex');
-    });
-
-    // Dismiss Modal Configuration Action
-    $('#closeModalBtn').on('click', function() {
-        $('#crudModal').hide();
-        resetFormStates();
-    });
-
-    // PRODUCT SAVE ACTION (CREATE / UPDATE EVALUATOR)
-    $('#productCrudForm').on('submit', function(e) {
+    /* =================================================================
+       PRODUCT CRUD
+    ================================================================= */
+    $('#productCrudForm').on('submit', function (e) {
         e.preventDefault();
+        if (!validateProduct()) return;
         const id = $('#product_id_field').val();
-        
-        const payload = {
-            name: $('#prod_name').val().trim(),
-            style_code: $('#prod_style_code').val().trim(),
-            category_id: parseInt($('#prod_category_id').val()),
-            gender: $('#prod_gender').val(),
-            price: parseFloat($('#prod_price').val()),
-            description: $('#prod_description').val().trim()
-        };
 
-        const url = id ? `/api/products/${id}` : '/api/products';
-        const method = id ? 'PUT' : 'POST';
+        const formData = new FormData();
+        formData.append('name', $('#prod_name').val().trim());
+        formData.append('style_code', $('#prod_style_code').val().trim());
+        formData.append('category_id', $('#prod_category_id').val());
+        formData.append('gender', $('#prod_gender').val());
+        formData.append('price', $('#prod_price').val());
+        formData.append('description', $('#prod_description').val().trim());
+        const files = $('#prod_images')[0].files;
+        for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
 
         $.ajax({
-            url: url,
-            method: method,
-            contentType: 'application/json',
-            data: JSON.stringify(payload),
+            url: id ? `/api/products/${id}` : '/api/products',
+            method: id ? 'PUT' : 'POST',
+            data: id ? { name: $('#prod_name').val().trim(), style_code: $('#prod_style_code').val().trim(), category_id: $('#prod_category_id').val(), gender: $('#prod_gender').val(), price: $('#prod_price').val(), description: $('#prod_description').val().trim() } : formData,
+            contentType: id ? 'application/json' : false,
+            processData: id ? true : false,
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function() {
+            success: function () {
                 $('#crudModal').hide();
+                showToast(id ? 'Product updated.' : 'Product created.', 'success');
                 productsTable.ajax.reload(null, false);
                 resetFormStates();
             },
-            error: function(xhr) { alert(`Product persistence error: ${xhr.responseJSON?.message || xhr.statusText}`); }
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Save failed.', 'error'); }
         });
     });
 
-    // EDIT ACTION: FETCH AND BIND PRODUCT INSTANCE
-    $(document).on('click', '.edit-product-row', function() {
+    $(document).on('click', '.edit-product-row', function () {
         const id = $(this).data('id');
         resetFormStates();
-
         $.ajax({
-            url: `/api/products/${id}`,
-            method: 'GET',
+            url: `/api/products/${id}`, method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function(product) {
-                $('#product_id_field').val(product.id);
-                $('#prod_name').val(product.name);
-                $('#prod_style_code').val(product.style_code);
-                $('#prod_category_id').val(product.category_id);
-                $('#prod_gender').val(product.gender);
-                $('#prod_price').val(product.price);
-                $('#prod_description').val(product.description);
-
-                $('#modalTargetTitle').text(`Edit Product Matrix: #${product.style_code}`);
+            success: function (p) {
+                $('#product_id_field').val(p.id);
+                $('#prod_name').val(p.name);
+                $('#prod_style_code').val(p.style_code);
+                preloadCategoryDropdown();
+                setTimeout(() => $('#prod_category_id').val(p.category_id), 300);
+                $('#prod_gender').val(p.gender);
+                $('#prod_price').val(p.price);
+                $('#prod_description').val(p.description);
+                $('#modalTargetTitle').text(`Edit Product: #${p.style_code}`);
                 $('#productCrudForm').show();
                 $('#crudModal').css('display', 'flex');
             }
         });
     });
 
-    // DELETE ACTION: REMOVE SELECTED PRODUCT SPECIFICATION
-    $(document).on('click', '.delete-product-row', function() {
+    $(document).on('click', '.delete-product-row', function () {
         const id = $(this).data('id');
-        if (confirm('Are you certain you wish to purge this item from your records?')) {
+        showConfirm('Delete this product? It will be soft-deleted and hidden from the storefront.', function () {
             $.ajax({
-                url: `/api/products/${id}`,
-                method: 'DELETE',
+                url: `/api/products/${id}`, method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
-                success: function() { productsTable.ajax.reload(null, false); }
+                success: function () { showToast('Product deleted.', 'success'); productsTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
             });
-        }
-    });
-
-    // CATEGORY SAVE ACTION (CREATE / UPDATE EVALUATOR)
-    $('#categoryCrudForm').on('submit', function(e) {
-        e.preventDefault();
-        const id = $('#category_id_field').val();
-        
-        const payload = { name: $('#cat_name').val().trim() };
-        const url = id ? `/api/categories/${id}` : '/api/categories';
-        const method = id ? 'PUT' : 'POST';
-
-        $.ajax({
-            url: url,
-            method: method,
-            contentType: 'application/json',
-            data: JSON.stringify(payload),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function() {
-                $('#crudModal').hide();
-                categoriesTable.ajax.reload(null, false);
-                preloadCategoryDropdown(); // Keep selection drop downs synchronized
-                resetFormStates();
-            },
-            error: function(xhr) { alert(`Category persistence error: ${xhr.responseJSON?.message || xhr.statusText}`); }
         });
     });
 
-    // EDIT ACTION: FETCH AND BIND CATEGORY TYPE
-    $(document).on('click', '.edit-category-row', function() {
+    /* =================================================================
+       CATEGORY CRUD
+    ================================================================= */
+    $('#categoryCrudForm').on('submit', function (e) {
+        e.preventDefault();
+        if (!validateCategory()) return;
+        const id = $('#category_id_field').val();
+        const payload = { name: $('#cat_name').val().trim() };
+        $.ajax({
+            url: id ? `/api/categories/${id}` : '/api/categories',
+            method: id ? 'PUT' : 'POST',
+            contentType: 'application/json', data: JSON.stringify(payload),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () {
+                $('#crudModal').hide();
+                showToast(id ? 'Category updated.' : 'Category created.', 'success');
+                categoriesTable.ajax.reload(null, false);
+                preloadCategoryDropdown();
+                resetFormStates();
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Save failed.', 'error'); }
+        });
+    });
+
+    $(document).on('click', '.edit-category-row', function () {
         const id = $(this).data('id');
         resetFormStates();
-
         $.ajax({
-            url: `/api/categories/${id}`,
-            method: 'GET',
+            url: `/api/categories/${id}`, method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function(category) {
-                $('#category_id_field').val(category.id);
-                $('#cat_name').val(category.name);
-
-                $('#modalTargetTitle').text(`Modify Category Label: ${category.name}`);
+            success: function (c) {
+                $('#category_id_field').val(c.id);
+                $('#cat_name').val(c.name);
+                $('#modalTargetTitle').text(`Edit Category: ${c.name}`);
                 $('#categoryCrudForm').show();
                 $('#crudModal').css('display', 'flex');
             }
         });
     });
 
-    // DELETE ACTION: REMOVE CHOSEN CATEGORY DEFINITION
-    $(document).on('click', '.delete-category-row', function() {
+    $(document).on('click', '.delete-category-row', function () {
         const id = $(this).data('id');
-        if (confirm('Purging this taxonomy segment will disassociate linked items. Proceed?')) {
+        showConfirm('Delete this category? Products assigned to it cannot be deleted until reassigned.', function () {
             $.ajax({
-                url: `/api/categories/${id}`,
-                method: 'DELETE',
+                url: `/api/categories/${id}`, method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
-                success: function() { 
+                success: function () {
+                    showToast('Category deleted.', 'success');
                     categoriesTable.ajax.reload(null, false);
                     preloadCategoryDropdown();
-                }
+                },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
             });
-        }
+        });
     });
 
-    /* ==========================================================================
-       UTILITIES & AUTH FLUSH HOOKS
-       ========================================================================== */
+    /* =================================================================
+       UTILITIES
+    ================================================================= */
     function resetFormStates() {
         $('.modal-form-wrapper').hide();
         $('#productCrudForm')[0].reset();
         $('#categoryCrudForm')[0].reset();
-        $('#product_id_field').val('');
-        $('#category_id_field').val('');
+        $('#product_id_field, #category_id_field').val('');
+        $('#prod_image_preview').empty();
+        clearErrors();
     }
 
     function handleAuthFailure(xhr) {
         if (xhr.status === 401 || xhr.status === 403) {
-            alert("Session signature expired or permissions invalid.");
-            localStorage.removeItem('token');
-            window.location.href = '../login.html';
+            showToast('Session expired. Redirecting to login.', 'error');
+            setTimeout(() => { localStorage.removeItem('token'); window.location.href = '../login.html'; }, 2000);
         }
     }
 
-    $('#adminLogoutBtn').on('click', function() {
+    $('#adminLogoutBtn').on('click', function () {
         localStorage.removeItem('token');
         window.location.href = '../shop.html';
     });
+
+    // Add some CSS for toast and field errors inline
+    $('<style>.field-error{color:#ff4444;font-size:11px;margin-top:4px;min-height:14px;} .audit-filter-btn.active{background:#fff;color:#000;}</style>').appendTo('head');
 });
