@@ -97,10 +97,17 @@ $(document).ready(function () {
         return Math.ceil(activeProducts.length / PRODUCTS_PER_PAGE);
     }
 
+    function resolveProductImage(path) {
+        if (!path) return DEFAULT_PRODUCT_IMAGE;
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.startsWith('/') ? path : `/${path}`;
+    }
+    const DEFAULT_PRODUCT_IMAGE = 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+
     function buildCard(product) {
         const imageSrc = (product.ProductImages && product.ProductImages.length > 0)
-            ? `/uploads/${product.ProductImages[0].image_path.replace(/^uploads\//, '')}`
-            : 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+            ? resolveProductImage(product.ProductImages[0].image_path)
+            : DEFAULT_PRODUCT_IMAGE;
 
         const dayDiff    = Math.floor((new Date() - new Date(product.createdAt)) / 86400000);
         const badgeHtml  = dayDiff < 30 ? `<span class="product-card__badge product-card__badge--new">New</span>` : '';

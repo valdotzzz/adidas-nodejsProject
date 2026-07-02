@@ -1,4 +1,4 @@
-const { User } = require('../../models');
+const { User, Address } = require('../../models');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -9,6 +9,25 @@ exports.getAllUsers = async (req, res) => {
         return res.status(200).json(users);
     } catch (error) {
         return res.status(500).json({ message: 'Server error fetching users.', error: error.message });
+    }
+};
+
+// GET /api/admin/users/:id/addresses — view a user's saved addresses (admin only)
+exports.getUserAddresses = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const addresses = await Address.findAll({
+            where: { user_id: req.params.id },
+            order: [['is_default', 'DESC'], ['createdAt', 'DESC']]
+        });
+
+        return res.status(200).json(addresses);
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error fetching user addresses.', error: error.message });
     }
 };
 

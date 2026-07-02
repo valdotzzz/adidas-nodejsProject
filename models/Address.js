@@ -11,6 +11,11 @@ const Address = sequelize.define('Address', {
         type: DataTypes.STRING,
         defaultValue: 'Home'
     },
+    address_type: {
+        type: DataTypes.ENUM('shipping', 'billing', 'other'),
+        defaultValue: 'shipping',
+        allowNull: false
+    },
     full_name: {
         type: DataTypes.STRING,
         allowNull: false
@@ -32,6 +37,14 @@ const Address = sequelize.define('Address', {
         allowNull: true
     },
     postal_code: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    country: {
+        type: DataTypes.STRING,
+        defaultValue: 'Philippines'
+    },
+    landmark: {
         type: DataTypes.STRING,
         allowNull: true
     },

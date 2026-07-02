@@ -1,4 +1,10 @@
 $(document).ready(function() {
+    function resolveProductImage(path) {
+        if (!path) return 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.startsWith('/') ? path : `/${path}`;
+    }
+
     fetchFeaturedDrops();
 
     function fetchFeaturedDrops() {
@@ -22,8 +28,8 @@ $(document).ready(function() {
                     
                     // Extract image path safely from relational associations (MP3 fallback check)
                     const imageSrc = (product.ProductImages && product.ProductImages.length > 0) 
-                        ? product.ProductImages[0].image_path 
-                        : 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+                        ? resolveProductImage(product.ProductImages[0].image_path) 
+                        : resolveProductImage(null);
 
                     // Compute dynamic date metrics to determine if new badge is applicable
                     const createdDate = new Date(product.createdAt);

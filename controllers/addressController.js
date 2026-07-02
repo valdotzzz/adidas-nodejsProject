@@ -16,7 +16,7 @@ exports.getAddresses = async (req, res) => {
 // POST /api/addresses — add a new address
 exports.createAddress = async (req, res) => {
     try {
-        const { label, full_name, phone, address_line, city, province, postal_code } = req.body;
+        const { label, address_type, full_name, phone, address_line, city, province, postal_code, country, landmark } = req.body;
 
         if (!full_name || !phone || !address_line || !city) {
             return res.status(400).json({ message: 'Recipient name, phone, street address, and city are required.' });
@@ -27,12 +27,15 @@ exports.createAddress = async (req, res) => {
 
         const address = await Address.create({
             label: label || 'Home',
+            address_type: address_type || 'shipping',
             full_name,
             phone,
             address_line,
             city,
             province,
             postal_code,
+            country: country || 'Philippines',
+            landmark,
             user_id: req.user.id,
             is_default: existingCount === 0
         });
@@ -51,8 +54,8 @@ exports.updateAddress = async (req, res) => {
             return res.status(404).json({ message: 'Address not found.' });
         }
 
-        const { label, full_name, phone, address_line, city, province, postal_code } = req.body;
-        await address.update({ label, full_name, phone, address_line, city, province, postal_code });
+        const { label, address_type, full_name, phone, address_line, city, province, postal_code, country, landmark } = req.body;
+        await address.update({ label, address_type, full_name, phone, address_line, city, province, postal_code, country, landmark });
 
         return res.status(200).json({ message: 'Address updated successfully.', address });
     } catch (error) {

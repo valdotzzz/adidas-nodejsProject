@@ -43,8 +43,9 @@ exports.getOrderById = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
+        const VALID_STATUSES = ['pending', 'processing', 'shipped', 'completed', 'cancelled', 'refunded'];
 
-        if (!['pending', 'completed', 'cancelled'].includes(status)) {
+        if (!VALID_STATUSES.includes(status)) {
             return res.status(422).json({ message: 'Invalid status value.' });
         }
 
@@ -66,8 +67,11 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(404).json({ message: 'Order not found.' });
         }
 
-        // If cancelling, restock the variants
-        if (status === 'cancelled' && order.status !== 'cancelled') {
+        // If cancelling or refunding, restock the variants — but only once, and
+        // only if the order wasn't already in a restocked state.
+        const RESTOCKING_STATUSES = ['cancelled', 'refunded'];
+        const wasAlreadyRestocked = RESTOCKING_STATUSES.includes(order.status);
+        if (RESTOCKING_STATUSES.includes(status) && !wasAlreadyRestocked) {
             for (const item of order.OrderItems) {
                 const variant = await Variant.findByPk(item.variant_id);
                 if (variant) {

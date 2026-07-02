@@ -5,6 +5,9 @@ $(document).ready(function () {
     let productsTable, categoriesTable, ordersTable, usersTable, auditTable;
     let allProductsData = [];
     let barChart, lineChart, pieChart;
+    let showingDeletedProducts = false;
+    let currentProductImages = []; // existing ProductImage rows for the product being edited
+    let imagesMarkedForRemoval = [];
 
     // Boot
     loadDashboard();
@@ -167,10 +170,13 @@ $(document).ready(function () {
                 { data: 'Category', render: d => d ? d.name : 'Unassigned' },
                 { data: 'gender', render: d => `<span style="text-transform:uppercase; font-size:11px;">${d}</span>` },
                 { data: 'price', render: d => `₱${parseFloat(d).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) }, 
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) }, 
                 {
                     data: 'id', orderable: false,
-                    render: d => `
-                        <div style="display:flex; gap:8px;">
+                    render: d => showingDeletedProducts
+                        ? `<button class="btn btn-dark restore-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#4caf50;">Restore</button>`
+                        : `<div style="display:flex; gap:8px;">
                             <button class="btn btn-dark edit-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
                             <button class="btn btn-dark delete-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
                         </div>`
@@ -236,7 +242,8 @@ $(document).ready(function () {
             columns: [
                 { data: 'id' },
                 { data: 'name', render: d => `<strong style="color:#fff;">${d}</strong>` },
-                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) }, 
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) }, 
                 {
                     data: 'id', orderable: false,
                     render: d => `
@@ -269,13 +276,17 @@ $(document).ready(function () {
                 { data: 'total_amount', render: d => `₱${parseFloat(d).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
                 {
                     data: 'status', render: (d, t, row) => `
-                        <select class="form-select-control order-status-select" data-id="${row.id}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                        <select class="form-select-control order-status-select" data-id="${row.id}" data-prev="${d}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
                             <option value="pending" ${d === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="processing" ${d === 'processing' ? 'selected' : ''}>Processing</option>
+                            <option value="shipped" ${d === 'shipped' ? 'selected' : ''}>Shipped</option>
                             <option value="completed" ${d === 'completed' ? 'selected' : ''}>Completed</option>
                             <option value="cancelled" ${d === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            <option value="refunded" ${d === 'refunded' ? 'selected' : ''}>Refunded</option>
                         </select>`
                 },
-                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) },
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) },
                 {
                     data: 'id', orderable: false,
                     render: d => `<button class="btn btn-dark delete-order-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>`
@@ -324,14 +335,25 @@ $(document).ready(function () {
     $('#closeOrderItemsModalBtn').on('click', function () { $('#orderItemsModal').hide(); });
 
     $(document).on('change', '.order-status-select', function () {
-        const id = $(this).data('id');
-        const status = $(this).val();
-        $.ajax({
-            url: `/api/admin/orders/${id}`, method: 'PUT',
-            contentType: 'application/json', data: JSON.stringify({ status }),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function () { showToast('Order status updated.', 'success'); ordersTable.ajax.reload(null, false); },
-            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Update failed.', 'error'); }
+        const select = $(this);
+        const id = select.data('id');
+        const prevStatus = select.data('prev');
+        const status = select.val();
+
+        showConfirm(`Change order #${String(id).padStart(6, '0')} status from "${prevStatus}" to "${status}"? The customer will be emailed.`, function () {
+            $.ajax({
+                url: `/api/admin/orders/${id}`, method: 'PUT',
+                contentType: 'application/json', data: JSON.stringify({ status }),
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Order status updated.', 'success'); ordersTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Update failed.', 'error'); ordersTable.ajax.reload(null, false); }
+            });
+        });
+
+        // If the admin backs out of the confirmation, snap the dropdown back
+        // to its previous value instead of leaving it on the unapplied choice.
+        $('#confirmModalNo, #closeConfirmModalBtn').off('click.restoreOrderStatus').on('click.restoreOrderStatus', function () {
+            select.val(prevStatus);
         });
     });
 
@@ -361,7 +383,7 @@ $(document).ready(function () {
                 { data: 'email' },
                 {
                     data: 'role', render: (d, t, row) => `
-                        <select class="form-select-control user-role-select" data-id="${row.id}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                        <select class="form-select-control user-role-select" data-id="${row.id}" data-prev="${d}" style="padding:6px; background:#1a1a1a; border:1px solid #333; color:#fff;">
                             <option value="customer" ${d === 'customer' ? 'selected' : ''}>Customer</option>
                             <option value="staff" ${d === 'staff' ? 'selected' : ''}>Staff</option>
                             <option value="admin" ${d === 'admin' ? 'selected' : ''}>Admin</option>
@@ -373,11 +395,13 @@ $(document).ready(function () {
                         ? `<span style="color:#4caf50; text-transform:uppercase; font-size:11px;">Active</span>`
                         : `<span style="color:#ff4444; text-transform:uppercase; font-size:11px;">Deactivated</span>`
                 },
-                { data: 'createdAt', render: d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) },
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) },
                 {
                     data: 'id', orderable: false,
                     render: (d, t, row) => `
                         <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark view-user-addresses" data-id="${d}" data-name="${row.name}" style="padding:6px 12px; font-size:11px;">Addresses</button>
                             <button class="btn btn-dark toggle-user-status" data-id="${d}" style="padding:6px 12px; font-size:11px; ${row.status === 'active' ? 'color:#ff4444;' : 'color:#4caf50;'}">
                                 ${row.status === 'active' ? 'Deactivate' : 'Reactivate'}
                             </button>
@@ -390,16 +414,59 @@ $(document).ready(function () {
     }
 
     $(document).on('change', '.user-role-select', function () {
-        const id = $(this).data('id');
-        const role = $(this).val();
-        $.ajax({
-            url: `/api/admin/users/${id}/role`, method: 'PATCH',
-            contentType: 'application/json', data: JSON.stringify({ role }),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function () { showToast('Role updated.', 'success'); usersTable.ajax.reload(null, false); },
-            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Role update failed.', 'error'); usersTable.ajax.reload(null, false); }
+        const select = $(this);
+        const id = select.data('id');
+        const prevRole = select.data('prev');
+        const role = select.val();
+
+        showConfirm(`Change this user's role from "${prevRole}" to "${role}"? This changes what they can access.`, function () {
+            $.ajax({
+                url: `/api/admin/users/${id}/role`, method: 'PATCH',
+                contentType: 'application/json', data: JSON.stringify({ role }),
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Role updated.', 'success'); usersTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Role update failed.', 'error'); usersTable.ajax.reload(null, false); }
+            });
+        });
+
+        $('#confirmModalNo, #closeConfirmModalBtn').off('click.restoreUserRole').on('click.restoreUserRole', function () {
+            select.val(prevRole);
         });
     });
+
+    $(document).on('click', '.view-user-addresses', function () {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        $.ajax({
+            url: `/api/admin/users/${id}/addresses`, method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (addresses) {
+                $('#userAddressesModalTitle').text(`${name} — Saved Addresses`);
+                if (!addresses || addresses.length === 0) {
+                    $('#userAddressesModalBody').html('<p style="color:#777; padding:20px 0;">No saved addresses.</p>');
+                } else {
+                    let html = '<div style="display:flex; flex-direction:column; gap:12px; padding-top:16px;">';
+                    addresses.forEach(a => {
+                        html += `<div style="border:1px solid #222; padding:14px; font-size:13px; color:#ccc;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <strong style="color:#fff;">${a.label || 'Address'} <span style="color:#777; font-weight:400; text-transform:uppercase; font-size:10px;">(${a.address_type || 'shipping'})</span></strong>
+                                ${a.is_default ? '<span style="color:#4caf50; font-size:11px;">Default</span>' : ''}
+                            </div>
+                            <div>${a.full_name} — ${a.phone}</div>
+                            <div>${a.address_line}${a.landmark ? ' (' + a.landmark + ')' : ''}</div>
+                            <div>${a.city}${a.province ? ', ' + a.province : ''} ${a.postal_code || ''}, ${a.country || ''}</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    $('#userAddressesModalBody').html(html);
+                }
+                $('#userAddressesModal').css('display', 'flex');
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not load addresses.', 'error'); }
+        });
+    });
+
+    $('#closeUserAddressesModalBtn').on('click', function () { $('#userAddressesModal').hide(); });
 
     $(document).on('click', '.toggle-user-status', function () {
         const id = $(this).data('id');
@@ -437,7 +504,8 @@ $(document).ready(function () {
                 headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
             },
             columns: [
-                { data: 'createdAt', render: d => new Date(d).toLocaleString('en-US') },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) },
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) },
                 { data: 'category', render: d => `<span style="text-transform:uppercase; font-size:10px; letter-spacing:1px; color:#aaa;">${d}</span>` },
                 { data: 'action', render: d => `<strong>${d}</strong>` },
                 { data: 'User', render: d => d ? `${d.name}<br><span style="color:#777; font-size:11px;">${d.email}</span>` : '—' },
@@ -460,7 +528,9 @@ $(document).ready(function () {
     $('#openCreateProductBtn').on('click', function () {
         resetFormStates();
         $('#modalTargetTitle').text('Register Product Variant');
-        $('#productCrudForm').show();
+        $('#productCrudTabs').hide();
+        $('#productDetailsTab').closest('form').show();
+        $('#productVariantsTab').hide();
         $('#crudModal').css('display', 'flex');
     });
 
@@ -530,6 +600,9 @@ $(document).ready(function () {
         if (!validateProduct()) return;
         const id = $('#product_id_field').val();
 
+        // Always use FormData — this is what actually lets image uploads be
+        // saved on BOTH create and edit (previously edit sent plain JSON and
+        // silently dropped any newly selected images).
         const formData = new FormData();
         formData.append('name', $('#prod_name').val().trim());
         formData.append('style_code', $('#prod_style_code').val().trim());
@@ -537,24 +610,64 @@ $(document).ready(function () {
         formData.append('gender', $('#prod_gender').val());
         formData.append('price', $('#prod_price').val());
         formData.append('description', $('#prod_description').val().trim());
+        formData.append('image_urls', $('#prod_image_urls').val().trim());
+        formData.append('remove_image_ids', JSON.stringify(imagesMarkedForRemoval));
+
         const files = $('#prod_images')[0].files;
         for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
 
         $.ajax({
             url: id ? `/api/products/${id}` : '/api/products',
             method: id ? 'PUT' : 'POST',
-            data: id ? { name: $('#prod_name').val().trim(), style_code: $('#prod_style_code').val().trim(), category_id: $('#prod_category_id').val(), gender: $('#prod_gender').val(), price: $('#prod_price').val(), description: $('#prod_description').val().trim() } : formData,
-            contentType: id ? 'application/json' : false,
-            processData: id ? true : false,
+            data: formData,
+            contentType: false,
+            processData: false,
             headers: { 'Authorization': `Bearer ${token}` },
-            success: function () {
-                $('#crudModal').hide();
+            success: function (response) {
                 showToast(id ? 'Product updated.' : 'Product created.', 'success');
                 productsTable.ajax.reload(null, false);
-                resetFormStates();
+                if (id) {
+                    // Stay open so the admin can keep working on variants for this product
+                    const savedProduct = response.product;
+                    currentProductImages = savedProduct.ProductImages || [];
+                    imagesMarkedForRemoval = [];
+                    renderExistingImages();
+                    $('#prod_images').val('');
+                    $('#prod_image_urls').val('');
+                } else {
+                    $('#crudModal').hide();
+                    resetFormStates();
+                }
             },
             error: function (xhr) { showToast(xhr.responseJSON?.message || 'Save failed.', 'error'); }
         });
+    });
+
+    function renderExistingImages() {
+        const wrap = $('#prod_existing_images').empty();
+        if (currentProductImages.length === 0) {
+            wrap.append('<div style="color:#777; font-size:11px;">No images yet — a default placeholder is shown on the storefront.</div>');
+            return;
+        }
+        currentProductImages.forEach(img => {
+            const marked = imagesMarkedForRemoval.includes(img.id);
+            wrap.append(`
+                <div class="existing-image-thumb" data-id="${img.id}" style="position:relative; cursor:pointer;">
+                    <img src="${img.image_path}" style="width:64px; height:64px; object-fit:cover; border:2px solid ${marked ? '#ff4444' : '#333'}; opacity:${marked ? '0.4' : '1'};">
+                    ${marked ? '<div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#ff4444; font-weight:700; font-size:11px;">REMOVE</div>' : ''}
+                </div>
+            `);
+        });
+    }
+
+    $(document).on('click', '.existing-image-thumb', function () {
+        const id = parseInt($(this).data('id'));
+        if (imagesMarkedForRemoval.includes(id)) {
+            imagesMarkedForRemoval = imagesMarkedForRemoval.filter(x => x !== id);
+        } else {
+            imagesMarkedForRemoval.push(id);
+        }
+        renderExistingImages();
     });
 
     $(document).on('click', '.edit-product-row', function () {
@@ -572,7 +685,13 @@ $(document).ready(function () {
                 $('#prod_gender').val(p.gender);
                 $('#prod_price').val(p.price);
                 $('#prod_description').val(p.description);
+                currentProductImages = p.ProductImages || [];
+                imagesMarkedForRemoval = [];
+                renderExistingImages();
                 $('#modalTargetTitle').text(`Edit Product: #${p.style_code}`);
+                $('#productCrudTabs').css('display', 'flex');
+                showProductTab('details');
+                loadVariantsForProduct(id);
                 $('#productCrudForm').show();
                 $('#crudModal').css('display', 'flex');
             }
@@ -587,6 +706,132 @@ $(document).ready(function () {
                 headers: { 'Authorization': `Bearer ${token}` },
                 success: function () { showToast('Product deleted.', 'success'); productsTable.ajax.reload(null, false); },
                 error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
+            });
+        });
+    });
+
+    /* =================================================================
+       PRODUCTS — VIEW DELETED / RESTORE
+    ================================================================= */
+    $('#toggleProductTrashBtn').on('click', function () {
+        showingDeletedProducts = !showingDeletedProducts;
+        $(this).text(showingDeletedProducts ? '← Back to Active' : '🗑 View Deleted');
+        $('#openCreateProductBtn').toggle(!showingDeletedProducts);
+        productsTable.ajax.url(showingDeletedProducts ? '/api/products/trash/list' : '/api/products').load();
+    });
+
+    $(document).on('click', '.restore-product-row', function () {
+        const id = $(this).data('id');
+        showConfirm('Restore this product? It will reappear on the storefront and in the active list.', function () {
+            $.ajax({
+                url: `/api/products/${id}/restore`, method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Product restored.', 'success'); productsTable.ajax.reload(null, false); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Restore failed.', 'error'); }
+            });
+        });
+    });
+
+    /* =================================================================
+       PRODUCT VARIANTS TAB
+    ================================================================= */
+    $(document).on('click', '.product-tab-btn', function () {
+        showProductTab($(this).data('tab'));
+    });
+
+    function showProductTab(tab) {
+        $('.product-tab-btn').removeClass('active');
+        $(`.product-tab-btn[data-tab="${tab}"]`).addClass('active');
+        $('#productDetailsTab').closest('form').toggle(tab === 'details');
+        $('#productVariantsTab').toggle(tab === 'variants');
+    }
+
+    function loadVariantsForProduct(productId) {
+        $.ajax({
+            url: `/api/products/${productId}/variants`, method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (variants) { renderVariantsList(productId, variants); }
+        });
+    }
+
+    function renderVariantsList(productId, variants) {
+        const wrap = $('#variantsListWrapper').empty();
+        if (!variants || variants.length === 0) {
+            wrap.append('<div style="color:#777; font-size:12px;">No variants yet — add sizes and colorways below.</div>');
+            return;
+        }
+        const table = $(`<table style="width:100%; border-collapse:collapse; font-size:12px; color:#ccc;">
+            <thead><tr style="border-bottom:1px solid #333; text-align:left;">
+                <th style="padding:8px 4px;">Colorway</th><th style="padding:8px 4px;">Size</th>
+                <th style="padding:8px 4px;">Stock</th><th style="padding:8px 4px;"></th>
+            </tr></thead><tbody></tbody></table>`);
+        const tbody = table.find('tbody');
+        variants.forEach(v => {
+            tbody.append(`
+                <tr style="border-bottom:1px solid #1a1a1a;" data-variant-id="${v.id}">
+                    <td style="padding:8px 4px;">${v.colorway}</td>
+                    <td style="padding:8px 4px;">${v.size_type} ${v.size_value}</td>
+                    <td style="padding:8px 4px;">
+                        <input type="number" class="variant-stock-input" data-id="${v.id}" value="${v.stock_level}" style="width:60px; padding:4px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                    </td>
+                    <td style="padding:8px 4px; text-align:right;">
+                        <button type="button" class="btn btn-dark save-variant-stock" data-id="${v.id}" style="padding:4px 10px; font-size:10px;">Save</button>
+                        <button type="button" class="btn btn-dark delete-variant-btn" data-id="${v.id}" style="padding:4px 10px; font-size:10px; color:#ff4444;">Delete</button>
+                    </td>
+                </tr>`);
+        });
+        wrap.append(table);
+        wrap.data('productId', productId);
+    }
+
+    $(document).on('click', '#addVariantBtn', function () {
+        const productId = $('#product_id_field').val();
+        if (!productId) { showToast('Save the product first.', 'error'); return; }
+
+        const colorway = $('#new_variant_colorway').val().trim();
+        const size_type = $('#new_variant_size_type').val();
+        const size_value = $('#new_variant_size_value').val();
+        const stock_level = $('#new_variant_stock').val() || 0;
+
+        if (!colorway || !size_value) { showToast('Colorway and size are required.', 'error'); return; }
+
+        $.ajax({
+            url: `/api/products/${productId}/variants`, method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ colorway, size_type, size_value, stock_level }),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () {
+                showToast('Variant added.', 'success');
+                $('#new_variant_colorway, #new_variant_size_value').val('');
+                $('#new_variant_stock').val(0);
+                loadVariantsForProduct(productId);
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not add variant.', 'error'); }
+        });
+    });
+
+    $(document).on('click', '.save-variant-stock', function () {
+        const id = $(this).data('id');
+        const stock_level = $(`.variant-stock-input[data-id="${id}"]`).val();
+        const productId = $('#product_id_field').val();
+        $.ajax({
+            url: `/api/variants/${id}`, method: 'PUT',
+            contentType: 'application/json', data: JSON.stringify({ stock_level }),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () { showToast('Variant updated.', 'success'); loadVariantsForProduct(productId); },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not update variant.', 'error'); }
+        });
+    });
+
+    $(document).on('click', '.delete-variant-btn', function () {
+        const id = $(this).data('id');
+        const productId = $('#product_id_field').val();
+        showConfirm('Remove this variant? Any stock tracking for it will be lost.', function () {
+            $.ajax({
+                url: `/api/variants/${id}`, method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () { showToast('Variant removed.', 'success'); loadVariantsForProduct(productId); },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not delete variant.', 'error'); }
             });
         });
     });
@@ -655,7 +900,10 @@ $(document).ready(function () {
         $('#productCrudForm')[0].reset();
         $('#categoryCrudForm')[0].reset();
         $('#product_id_field, #category_id_field').val('');
-        $('#prod_image_preview').empty();
+        $('#prod_image_preview, #prod_existing_images, #variantsListWrapper').empty();
+        $('#productCrudTabs').hide();
+        currentProductImages = [];
+        imagesMarkedForRemoval = [];
         clearErrors();
     }
 
@@ -670,6 +918,26 @@ $(document).ready(function () {
         localStorage.removeItem('token');
         window.location.href = '../shop.html';
     });
+
+    function renderDataTableDate(data, type) {
+        if (!data) return '<span style="color:#555;">—</span>';
+        
+        // If DataTables is sorting or type-checking, feed it the raw numeric timestamp
+        if (type === 'sort' || type === 'type') {
+            return new Date(data).getTime();
+        }
+        
+        // For visual display to the user, render: M/D/YYYY HH:MM:SS
+        const date = new Date(data);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const year = date.getFullYear();
+        const hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+    }
 
     // Add some CSS for toast and field errors inline
     $('<style>.field-error{color:#ff4444;font-size:11px;margin-top:4px;min-height:14px;} .audit-filter-btn.active{background:#fff;color:#000;}</style>').appendTo('head');

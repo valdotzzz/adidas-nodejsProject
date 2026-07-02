@@ -1,5 +1,15 @@
 const { Product, Variant, ProductImage, Category } = require('../models');
 
+// Accepts a comma- or newline-separated string of image URLs and returns a
+// clean array, dropping blanks and anything that isn't a plausible http(s) URL.
+function parseImageUrls(raw) {
+    if (!raw) return [];
+    return String(raw)
+        .split(/[\n,]/)
+        .map(s => s.trim())
+        .filter(s => /^https?:\/\//i.test(s));
+}
+
 // Create Product with Variants (Fulfills partial MP1/MP2)
 exports.createProduct = async (req, res) => {
     try {
@@ -23,11 +33,23 @@ exports.createProduct = async (req, res) => {
             category_id
         });
         
-        // Save uploaded images if any
+        // Save uploaded image files, if any
         if (req.files && req.files.length > 0) {
             const imageData = req.files.map(file => ({
                 product_id: newProduct.id,
-                image_path: `uploads/${file.filename}`,
+                image_path: `/uploads/${file.filename}`,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }));
+            await ProductImage.bulkCreate(imageData);
+        }
+
+        // Save any pasted image URLs, if provided (comma or newline separated)
+        const urlImages = parseImageUrls(req.body.image_urls);
+        if (urlImages.length > 0) {
+            const imageData = urlImages.map(url => ({
+                product_id: newProduct.id,
+                image_path: url,
                 createdAt: new Date(),
                 updatedAt: new Date()
             }));
@@ -67,8 +89,49 @@ exports.updateProduct = async (req, res) => {
             return res.status(404).json({ message: 'Product not found.' });
         }
 
-        await product.update(req.body);
-        return res.status(200).json({ message: 'Product updated successfully.', product });
+        // Only the actual product fields go through .update() — image-related
+        // keys are handled separately below so they don't get written onto
+        // the Product row itself.
+        const { image_urls, remove_image_ids, ...productFields } = req.body;
+        await product.update(productFields);
+
+        // Save newly uploaded image files, if any
+        if (req.files && req.files.length > 0) {
+            const imageData = req.files.map(file => ({
+                product_id: product.id,
+                image_path: `/uploads/${file.filename}`,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }));
+            await ProductImage.bulkCreate(imageData);
+        }
+
+        // Save any newly pasted image URLs, if provided
+        const urlImages = parseImageUrls(image_urls);
+        if (urlImages.length > 0) {
+            const imageData = urlImages.map(url => ({
+                product_id: product.id,
+                image_path: url,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }));
+            await ProductImage.bulkCreate(imageData);
+        }
+
+        // Remove any images the admin explicitly unchecked/deleted
+        if (remove_image_ids) {
+            let ids = remove_image_ids;
+            if (typeof ids === 'string') {
+                try { ids = JSON.parse(ids); } catch { ids = ids.split(',').map(s => s.trim()); }
+            }
+            ids = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+            if (ids.length > 0) {
+                await ProductImage.destroy({ where: { id: ids, product_id: product.id } });
+            }
+        }
+
+        const updatedProduct = await Product.findByPk(id, { include: [Category, Variant, ProductImage] });
+        return res.status(200).json({ message: 'Product updated successfully.', product: updatedProduct });
     } catch (error) {
         return res.status(500).json({ message: 'Server error updating product.', error: error.message });
     }
@@ -91,6 +154,38 @@ exports.deleteProduct = async (req, res) => {
 };
 
 const db = require('../models');
+
+// GET /api/products/trash — list soft-deleted products (admin/staff)
+exports.getDeletedProducts = async (req, res) => {
+    try {
+        const products = await db.Product.findAll({
+            where: { deletedAt: { [require('sequelize').Op.ne]: null } },
+            paranoid: false,
+            include: [db.Category, db.Variant, db.ProductImage]
+        });
+        return res.status(200).json(products);
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error fetching deleted products.', error: error.message });
+    }
+};
+
+// PATCH /api/products/:id/restore — undo a soft delete (admin/staff)
+exports.restoreProduct = async (req, res) => {
+    try {
+        const product = await db.Product.findByPk(req.params.id, { paranoid: false });
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+        if (!product.deletedAt) {
+            return res.status(400).json({ message: 'This product is not deleted.' });
+        }
+
+        await product.restore();
+        return res.status(200).json({ message: 'Product restored successfully.', product });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error restoring product.', error: error.message });
+    }
+};
 
 // GET /api/products/:id
 exports.getProductById = async (req, res) => {

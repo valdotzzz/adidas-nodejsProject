@@ -8,6 +8,12 @@ $(document).ready(function() {
 
     loadCart();
 
+    function resolveProductImage(path) {
+        if (!path) return 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.startsWith('/') ? path : `/${path}`;
+    }
+
     function loadCart() {
         $.ajax({
             url: '/api/cart',
@@ -49,8 +55,8 @@ $(document).ready(function() {
 
             const images = product.ProductImages || product.product_images;
             const imageSrc = (images && images.length > 0)
-                ? images[0].image_path
-                : 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+                ? resolveProductImage(images[0].image_path)
+                : resolveProductImage(null);
 
             const lineTotal = (parseFloat(product.price) * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 });
             const lowStock = variant.stock_level > 0 && variant.stock_level <= 5;

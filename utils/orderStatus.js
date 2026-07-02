@@ -34,6 +34,16 @@ function orderStatusTemplate(order) {
             msgBorder: '#1565c0',
             msgBg    : '#f5f9ff',
         },
+        shipped: {
+            headerBg : '#0d3b66',
+            icon     : '🚚',
+            title    : 'Order Shipped',
+            message  : "Your order is on its way! You'll receive it soon — thanks for your patience.",
+            badgeBg  : '#e1f0ff',
+            badgeColor: '#0d3b66',
+            msgBorder: '#0d3b66',
+            msgBg    : '#f5faff',
+        },
         completed: {
             headerBg : '#1b4332',
             icon     : '✅',
@@ -53,6 +63,16 @@ function orderStatusTemplate(order) {
             badgeColor: '#b71c1c',
             msgBorder: '#CC0008',
             msgBg    : '#fff8f8',
+        },
+        refunded: {
+            headerBg : '#4a2b7a',
+            icon     : '💸',
+            title    : 'Order Refunded',
+            message  : 'Your refund has been processed. Please allow 3–5 business days for it to reflect.',
+            badgeBg  : '#f1e9ff',
+            badgeColor: '#4a2b7a',
+            msgBorder: '#4a2b7a',
+            msgBg    : '#faf7ff',
         },
     };
 

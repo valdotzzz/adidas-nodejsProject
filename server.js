@@ -13,6 +13,8 @@ const addressRoutes = require('./routes/addressRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const checkoutRoutes = require('./routes/checkoutRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const variantRoutes = require('./routes/variantRoutes');
+const variantItemRoutes = require('./routes/variantItemRoutes');
 
 
 const app = express();
@@ -32,6 +34,8 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/products/:productId/variants', variantRoutes);
+app.use('/api/variants', variantItemRoutes);
 app.use('/uploads', express.static('public/uploads'));
 
 

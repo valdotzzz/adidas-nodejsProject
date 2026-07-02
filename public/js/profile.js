@@ -107,10 +107,12 @@ $(document).ready(function() {
                     ${addr.is_default ? '<span class="address-card__default-tag">Default</span>' : ''}
                     ${addr.label ? `<span class="address-card__label">${addr.label}</span>` : ''}
                     <div class="address-card__name">${addr.full_name}</div>
+                    ${addr.address_type ? `<span class="address-card__label" style="margin-left:6px;">${addr.address_type}</span>` : ''}
                     <div class="address-card__detail">
                         ${addr.phone}<br>
-                        ${addr.address_line}<br>
-                        ${addr.city}${addr.province ? ', ' + addr.province : ''} ${addr.postal_code || ''}
+                        ${addr.address_line}${addr.landmark ? ' (' + addr.landmark + ')' : ''}<br>
+                        ${addr.city}${addr.province ? ', ' + addr.province : ''} ${addr.postal_code || ''}<br>
+                        ${addr.country || ''}
                     </div>
                     <div class="address-card__actions">
                         ${!addr.is_default ? `<button type="button" class="set-default-address" data-id="${addr.id}">Set Default</button>` : ''}
@@ -144,12 +146,15 @@ $(document).ready(function() {
 
         $('#address_id_field').val(address.id);
         $('#addr_label').val(address.label || 'Home');
+        $('#addr_address_type').val(address.address_type || 'shipping');
         $('#addr_full_name').val(address.full_name);
         $('#addr_phone').val(address.phone);
         $('#addr_address_line').val(address.address_line);
         $('#addr_city').val(address.city);
         $('#addr_province').val(address.province || '');
         $('#addr_postal_code').val(address.postal_code || '');
+        $('#addr_country').val(address.country || 'Philippines');
+        $('#addr_landmark').val(address.landmark || '');
 
         $('#addressModalTitle').text('Edit Address');
         $('#addressModal').css('display', 'flex');
@@ -169,12 +174,15 @@ $(document).ready(function() {
 
         const payload = {
             label: $('#addr_label').val(),
+            address_type: $('#addr_address_type').val(),
             full_name: $('#addr_full_name').val().trim(),
             phone: $('#addr_phone').val().trim(),
             address_line: $('#addr_address_line').val().trim(),
             city: $('#addr_city').val().trim(),
             province: $('#addr_province').val().trim(),
-            postal_code: $('#addr_postal_code').val().trim()
+            postal_code: $('#addr_postal_code').val().trim(),
+            country: $('#addr_country').val().trim() || 'Philippines',
+            landmark: $('#addr_landmark').val().trim()
         };
 
         const url = id ? `/api/addresses/${id}` : '/api/addresses';

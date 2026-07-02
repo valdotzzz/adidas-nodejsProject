@@ -315,7 +315,8 @@ $(document).ready(function() {
             const images = product.ProductImages || product.product_images;
 
             if (images && images.length > 0) {
-                imageSrc = images[0].image_path;
+                const raw = images[0].image_path;
+                imageSrc = /^https?:\/\//i.test(raw) ? raw : (raw.startsWith('/') ? raw : `/${raw}`);
             }
             $('#detail-image').attr('src', imageSrc).attr('alt', product.name);
 

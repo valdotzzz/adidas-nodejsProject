@@ -97,7 +97,10 @@
                     <div class="section-label">Inventory Control Matrix</div>
                     <h2 class="section-title">Manage Products</h2>
                 </div>
-                <button class="btn btn-primary" id="openCreateProductBtn" style="padding:10px 20px; font-size:12px;">+ Add Product</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-dark" id="toggleProductTrashBtn" style="padding:10px 20px; font-size:12px;">🗑 View Deleted</button>
+                    <button class="btn btn-primary" id="openCreateProductBtn" style="padding:10px 20px; font-size:12px;">+ Add Product</button>
+                </div>
             </div>
 
             <!-- Filters -->
@@ -123,8 +126,15 @@
                 <table id="productsSecureTable" class="display" style="width:100%">
                     <thead>
                         <tr>
-                            <th>ID</th><th>Style Code</th><th>Name</th><th>Category</th>
-                            <th>Gender</th><th>Price</th><th>Actions</th>
+                            <th>ID</th>
+                            <th>Style Code</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Gender</th>
+                            <th>Price</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -144,7 +154,13 @@
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="categoriesSecureTable" class="display" style="width:100%">
                     <thead>
-                        <tr><th>ID</th><th>Category Name</th><th>Created At</th><th>Actions</th></tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>Category Name</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -162,7 +178,16 @@
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="ordersSecureTable" class="display" style="width:100%">
                     <thead>
-                        <tr><th>Order #</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -180,7 +205,16 @@
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="usersSecureTable" class="display" style="width:100%">
                     <thead>
-                        <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Joined</th>
+                            <th>Updated At</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -204,7 +238,14 @@
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="auditLogsTable" class="display" style="width:100%">
                     <thead>
-                        <tr><th>Time</th><th>Category</th><th>Action</th><th>User</th><th>Description</th></tr>
+                        <tr>
+                            <th>Created Time</th>
+                            <th>Updated Time</th>
+                            <th>Category</th>
+                            <th>Action</th>
+                            <th>User</th>
+                            <th>Description</th>
+                        </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -221,8 +262,14 @@
                 <button class="admin-modal-close" id="closeModalBtn">✕</button>
             </div>
 
+            <div id="productCrudTabs" style="display:none; gap:8px; margin-bottom:16px;">
+                <button type="button" class="btn btn-dark product-tab-btn active" data-tab="details" style="padding:8px 16px; font-size:12px;">Details</button>
+                <button type="button" class="btn btn-dark product-tab-btn" data-tab="variants" style="padding:8px 16px; font-size:12px;">Variants</button>
+            </div>
+
             <form id="productCrudForm" class="modal-form-wrapper" style="display:none;" enctype="multipart/form-data">
                 <input type="hidden" id="product_id_field">
+                <div id="productDetailsTab">
                 <div class="form-group">
                     <label>Product Name</label>
                     <input type="text" id="prod_name" required>
@@ -257,13 +304,53 @@
                     <textarea id="prod_description" style="width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:#fff; min-height:80px; font-family:inherit; resize:vertical;"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Product Images</label>
+                    <label>Existing Images</label>
+                    <div id="prod_existing_images" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                    <div style="color:#777; font-size:11px;">Click an image to mark it for removal. Marked images are deleted on save.</div>
+                </div>
+                <div class="form-group">
+                    <label>Upload New Images</label>
                     <input type="file" id="prod_images" multiple accept="image/*" style="color:#fff; font-size:13px;">
-                    <div style="color:#777; font-size:11px; margin-top:6px;">Select multiple images. First image becomes the primary display image.</div>
+                    <div style="color:#777; font-size:11px; margin-top:6px;">Select multiple images. First remaining image becomes the primary display image.</div>
                     <div id="prod_image_preview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
                 </div>
+                <div class="form-group">
+                    <label>Or Add Image URLs</label>
+                    <textarea id="prod_image_urls" style="width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:#fff; min-height:60px; font-family:inherit; resize:vertical;" placeholder="One URL per line, or comma separated. Use for images hosted elsewhere (e.g. https://example.com/shoe.jpg)."></textarea>
+                </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px;">Save Product</button>
+                </div>
             </form>
+
+            <div id="productVariantsTab" style="display:none;">
+                <div style="color:#777; font-size:12px; margin-bottom:14px;">Save the product first (Details tab) before adding variants.</div>
+                <div id="variantsListWrapper" style="margin-bottom:20px;"></div>
+                <div style="border-top:1px solid #222; padding-top:16px;">
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; align-items:end;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px;">Colorway</label>
+                            <input type="text" id="new_variant_colorway" placeholder="e.g. Core Black">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px;">Size Type</label>
+                            <select id="new_variant_size_type" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                                <option value="US">US</option>
+                                <option value="UK">UK</option>
+                                <option value="EU">EU</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px;">Size Value</label>
+                            <input type="number" step="0.5" id="new_variant_size_value" placeholder="9.5">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px;">Stock</label>
+                            <input type="number" id="new_variant_stock" placeholder="0" value="0">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="addVariantBtn" style="padding:12px 16px; font-size:12px;">+ Add</button>
+                    </div>
+                </div>
+            </div>
 
             <form id="categoryCrudForm" class="modal-form-wrapper" style="display:none;">
                 <input type="hidden" id="category_id_field">
@@ -274,6 +361,17 @@
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px;">Save Category</button>
             </form>
+        </div>
+    </div>
+
+    <!-- ===================== USER ADDRESSES POP-UP ===================== -->
+    <div class="admin-modal-overlay" id="userAddressesModal">
+        <div class="admin-modal-window" style="max-width:600px;">
+            <div class="admin-modal-header">
+                <h3 id="userAddressesModalTitle">Saved Addresses</h3>
+                <button class="admin-modal-close" id="closeUserAddressesModalBtn">✕</button>
+            </div>
+            <div id="userAddressesModalBody" style="padding:0 24px 24px;"></div>
         </div>
     </div>
 
