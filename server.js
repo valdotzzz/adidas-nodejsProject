@@ -17,6 +17,7 @@ const variantRoutes = require('./routes/variantRoutes');
 const variantItemRoutes = require('./routes/variantItemRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/products/:productId/variants', variantRoutes);
 app.use('/api/variants', variantItemRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/uploads', express.static('public/uploads'));
 
 

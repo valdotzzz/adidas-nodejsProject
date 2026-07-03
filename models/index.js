@@ -13,11 +13,12 @@ const Review = require('./Review');
 const AuditLog = require('./AuditLog');
 const Wishlist = require('./Wishlist');
 const Notification = require('./Notification');
+const Announcement = require('./Announcement');
 
 const db = {
     User, Category, Product, ProductImage,
     Variant, Order, OrderItem, Address, Review, AuditLog,
-    Wishlist, Notification,
+    Wishlist, Notification, Announcement,
     sequelize, Sequelize
 };
 
