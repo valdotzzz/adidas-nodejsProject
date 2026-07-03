@@ -2,6 +2,8 @@ $(document).ready(function() {
     renderHeader();
     renderFooter();
     setupAuthStates();
+    loadAnnouncement();   // <-- add this line
+
 });
 
 function renderHeader() {
@@ -333,6 +335,56 @@ function loadNotifications(token) {
         error: function() {}
     });
 }
+
+function loadAnnouncement() {
+    $.ajax({
+        url: '/api/announcements/active',
+        method: 'GET',
+        dataType: 'json',
+        success: function(announcement) {
+            if (!announcement) return; // nothing active right now
+
+            const barHtml = `
+                <div class="announcement-bar" id="announcementBar">
+                    <button type="button" class="announcement-bar__toggle" id="announcementToggle" aria-expanded="false">
+                        <span class="announcement-bar__label">${announcement.title || announcement.message}</span>
+                        <svg class="announcement-bar__chevron" id="announcementChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="announcement-panel" id="announcementPanel">
+                        <button type="button" class="announcement-panel__close" id="announcementClose" aria-label="Close">&times;</button>
+                        <div class="announcement-panel__content">
+                            ${announcement.title ? `<h4 class="announcement-panel__title">${announcement.title}</h4>` : ''}
+                            <p class="announcement-panel__message">${announcement.message}</p>
+                            ${announcement.link_url ? `<a href="${announcement.link_url}" class="announcement-panel__link">${announcement.link_text}</a>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            $('body').prepend(barHtml);
+        },
+        error: function() {}
+    });
+}
+
+// Toggle the dropdown panel open/closed
+$(document).on('click', '#announcementToggle', function() {
+    const $panel = $('#announcementPanel');
+    const $chevron = $('#announcementChevron');
+    const isOpen = $panel.hasClass('is-open');
+
+    $panel.toggleClass('is-open');
+    $chevron.toggleClass('is-rotated');
+    $(this).attr('aria-expanded', !isOpen);
+});
+
+// Close button collapses the panel
+$(document).on('click', '#announcementClose', function() {
+    $('#announcementPanel').removeClass('is-open');
+    $('#announcementChevron').removeClass('is-rotated');
+    $('#announcementToggle').attr('aria-expanded', false);
+});
 
 function updateNotifBadge() {
     const unread = $('.mini-notif-item--unread').length;

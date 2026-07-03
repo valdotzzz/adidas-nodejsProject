@@ -27,6 +27,7 @@ async function recalculateOrderTotal(order, transaction) {
     return order.total_amount;
 }
 
+
 // Validates + resolves the client-submitted cart against live DB data.
 // Throws { status, message } on any problem so callers can just await it.
 async function resolveAndValidateCart(items, transaction) {
