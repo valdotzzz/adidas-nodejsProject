@@ -98,11 +98,16 @@ $(document).ready(function() {
         updateTotalsDisplay();
     });
 
-    // Toggle the card payment form whenever the payment method changes
+    // Toggle the gcash / card payment forms whenever the payment method changes
     $(document).on('change', 'input[name="payment_method"]', function() {
-        const isCard = $(this).val() === 'card';
-        $('#card-form-wrapper').toggleClass('is-visible', isCard);
-        if (!isCard) clearSavedCardSelection();
+        const method = $(this).val();
+        $('#gcash-form-wrapper').toggleClass('is-visible', method === 'gcash');
+        $('#card-form-wrapper').toggleClass('is-visible', method === 'card');
+
+        if (method !== 'gcash') {
+            $('#gcash_account_name, #gcash_number').val('');
+        }
+        if (method !== 'card') clearSavedCardSelection();
     });
 
     // Lets the saved-card click handler share/reset its selection state
@@ -173,8 +178,7 @@ $(document).ready(function() {
 
         addresses.forEach(addr => {
             $container.append(`
-                <div class="saved-address-option" data-address='${JSON.stringify(addr)}'
-                     style="border:1.5px solid #ccc; padding:14px; margin-bottom:8px; cursor:pointer;">
+                <div class="saved-address-option" data-address='${JSON.stringify(addr)}'>
                     <div style="font-weight:700; font-size:14px;">${addr.full_name} — ${addr.phone}</div>
                     <div style="font-size:13px; color:#888;">
                         ${addr.address_line}, ${addr.city}${addr.province ? ', ' + addr.province : ''} ${addr.postal_code || ''}
@@ -184,12 +188,21 @@ $(document).ready(function() {
         });
     }
 
-    // Clicking a saved address fills the form
+    // Clicking a saved address fills the form and flashes the clicked card
+    // to make the selection feel deliberate instead of a silent form-fill.
     $(document).on('click', '.saved-address-option', function() {
-        $('.saved-address-option').css('border-color', '#ccc');
-        $(this).css('border-color', '#000');
+        const $this = $(this);
 
-        const addr = JSON.parse($(this).attr('data-address'));
+        $('.saved-address-option').removeClass('is-selected flash-select');
+        $this.addClass('is-selected flash-select');
+
+        // Remove the flash class once its animation finishes so it can
+        // replay cleanly if the user clicks a different address and back.
+        $this.on('animationend', function() {
+            $this.removeClass('flash-select');
+        });
+
+        const addr = JSON.parse($this.attr('data-address'));
         $('#full_name').val(addr.full_name);
         $('#phone').val(addr.phone);
         $('#address_line').val(addr.address_line);
@@ -230,6 +243,16 @@ $(document).ready(function() {
         if ((discountType === 'pwd' || discountType === 'senior') && !payload.discount_id_number) {
             $error.text('Please enter your PWD / Senior Citizen ID number.').show();
             return;
+        }
+
+        if (paymentMethod === 'gcash') {
+            payload.gcash_account_name = $('#gcash_account_name').val().trim();
+            payload.gcash_number = $('#gcash_number').val().trim();
+
+            if (!payload.gcash_account_name || !/^09\d{9}$/.test(payload.gcash_number)) {
+                $error.text('Please enter your GCash account name and a valid 11-digit mobile number (starts with 09).').show();
+                return;
+            }
         }
 
         if (paymentMethod === 'card') {
