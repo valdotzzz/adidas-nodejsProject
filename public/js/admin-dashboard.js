@@ -2,7 +2,7 @@ $(document).ready(function () {
     const token = localStorage.getItem('token');
     if (!token) { window.location.href = '../login.html'; return; }
 
-    let productsTable, categoriesTable, ordersTable, usersTable, auditTable;
+    let productsTable, categoriesTable, ordersTable, usersTable, auditTable, announcementsTable;
     let allProductsData = [];
     let barChart, lineChart, pieChart;
     let showingDeletedProducts = false;
@@ -16,6 +16,7 @@ $(document).ready(function () {
     initOrdersTable();
     initUsersTable();
     initAuditTable();
+    initAnnouncementsTable();
     preloadCategoryDropdown();
     populateFilterCategoryDropdown();
 
@@ -35,6 +36,7 @@ $(document).ready(function () {
     $('#sidebar-orders-btn').on('click', function (e) { e.preventDefault(); showPanel('#orders-section', '#sidebar-orders-btn'); ordersTable.ajax.reload(null, false); });
     $('#sidebar-users-btn').on('click', function (e) { e.preventDefault(); showPanel('#users-section', '#sidebar-users-btn'); usersTable.ajax.reload(null, false); });
     $('#sidebar-audit-btn').on('click', function (e) { e.preventDefault(); showPanel('#audit-section', '#sidebar-audit-btn'); auditTable.ajax.reload(null, false); });
+    $('#sidebar-announcements-btn').on('click', function (e) { e.preventDefault(); showPanel('#announcements-section', '#sidebar-announcements-btn'); announcementsTable.ajax.reload(null, false); });
 
     /* =================================================================
        CONFIRM MODAL (replaces window.confirm)
@@ -82,6 +84,13 @@ $(document).ready(function () {
         let valid = true;
         clearErrors();
         if (!$('#cat_name').val().trim()) { setError('cat_name', 'Category name is required.'); valid = false; }
+        return valid;
+    }
+
+    function validateAnnouncement() {
+        let valid = true;
+        clearErrors();
+        if (!$('#ann_message').val().trim()) { setError('ann_message', 'Message is required.'); valid = false; }
         return valid;
     }
 
@@ -256,6 +265,47 @@ $(document).ready(function () {
                         <div style="display:flex; gap:8px;">
                             <button class="btn btn-dark edit-category-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
                             <button class="btn btn-dark delete-category-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
+                        </div>`
+                }
+            ],
+            responsive: true
+        });
+    }
+
+    /* =================================================================
+       ANNOUNCEMENTS TABLE
+    ================================================================= */
+    function initAnnouncementsTable() {
+        announcementsTable = $('#announcementsSecureTable').DataTable({
+            ajax: {
+                url: '/api/announcements', method: 'GET', dataSrc: '',
+                headers: { 'Authorization': `Bearer ${token}` }, error: handleAuthFailure
+            },
+            columns: [
+                { data: 'id' },
+                { data: 'title', render: d => d ? `<strong style="color:#fff;">${d}</strong>` : '<span style="color:#555;">—</span>' },
+                { data: 'message', render: d => `<span style="color:#ccc;">${d.length > 60 ? d.slice(0, 60) + '…' : d}</span>` },
+                {
+                    data: 'is_active', orderable: false,
+                    render: d => d
+                        ? '<span style="color:#2f8f4e; font-weight:700; font-size:11px; text-transform:uppercase;">Active</span>'
+                        : '<span style="color:#777; font-weight:700; font-size:11px; text-transform:uppercase;">Inactive</span>'
+                },
+                {
+                    data: null, orderable: false,
+                    render: (d, t, row) => {
+                        const start = row.start_date ? renderDataTableDate(row.start_date, 'display') : 'Immediately';
+                        const end = row.end_date ? renderDataTableDate(row.end_date, 'display') : 'No end';
+                        return `<span style="color:#aaa; font-size:12px;">${start} → ${end}</span>`;
+                    }
+                },
+                { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) },
+                {
+                    data: 'id', orderable: false,
+                    render: d => `
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark edit-announcement-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
+                            <button class="btn btn-dark delete-announcement-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
                         </div>`
                 }
             ],
@@ -546,6 +596,13 @@ $(document).ready(function () {
         resetFormStates();
         $('#modalTargetTitle').text('Define Category Segment');
         $('#categoryCrudForm').show();
+        $('#crudModal').css('display', 'flex');
+    });
+
+    $('#openCreateAnnouncementBtn').on('click', function () {
+        resetFormStates();
+        $('#modalTargetTitle').text('Create Announcement');
+        $('#announcementCrudForm').show();
         $('#crudModal').css('display', 'flex');
     });
 
@@ -903,13 +960,89 @@ $(document).ready(function () {
     });
 
     /* =================================================================
+       ANNOUNCEMENT CRUD
+    ================================================================= */
+    function toDatetimeLocalValue(isoString) {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    $('#announcementCrudForm').on('submit', function (e) {
+        e.preventDefault();
+        if (!validateAnnouncement()) return;
+        const id = $('#announcement_id_field').val();
+        const payload = {
+            title: $('#ann_title').val().trim(),
+            message: $('#ann_message').val().trim(),
+            link_url: $('#ann_link_url').val().trim(),
+            link_text: $('#ann_link_text').val().trim(),
+            is_active: $('#ann_is_active').is(':checked'),
+            start_date: $('#ann_start_date').val() || null,
+            end_date: $('#ann_end_date').val() || null
+        };
+        $.ajax({
+            url: id ? `/api/announcements/${id}` : '/api/announcements',
+            method: id ? 'PUT' : 'POST',
+            contentType: 'application/json', data: JSON.stringify(payload),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () {
+                $('#crudModal').hide();
+                showToast(id ? 'Announcement updated.' : 'Announcement created.', 'success');
+                announcementsTable.ajax.reload(null, false);
+                resetFormStates();
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Save failed.', 'error'); }
+        });
+    });
+
+    $(document).on('click', '.edit-announcement-row', function () {
+        const id = $(this).data('id');
+        resetFormStates();
+        $.ajax({
+            url: `/api/announcements/${id}`, method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (a) {
+                $('#announcement_id_field').val(a.id);
+                $('#ann_title').val(a.title || '');
+                $('#ann_message').val(a.message || '');
+                $('#ann_link_url').val(a.link_url || '');
+                $('#ann_link_text').val(a.link_text || '');
+                $('#ann_is_active').prop('checked', !!a.is_active);
+                $('#ann_start_date').val(toDatetimeLocalValue(a.start_date));
+                $('#ann_end_date').val(toDatetimeLocalValue(a.end_date));
+                $('#modalTargetTitle').text('Edit Announcement');
+                $('#announcementCrudForm').show();
+                $('#crudModal').css('display', 'flex');
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-announcement-row', function () {
+        const id = $(this).data('id');
+        showConfirm('Delete this announcement? It will stop showing to shoppers immediately.', function () {
+            $.ajax({
+                url: `/api/announcements/${id}`, method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function () {
+                    showToast('Announcement deleted.', 'success');
+                    announcementsTable.ajax.reload(null, false);
+                },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
+            });
+        });
+    });
+
+    /* =================================================================
        UTILITIES
     ================================================================= */
     function resetFormStates() {
         $('.modal-form-wrapper').hide();
         $('#productCrudForm')[0].reset();
         $('#categoryCrudForm')[0].reset();
-        $('#product_id_field, #category_id_field').val('');
+        $('#announcementCrudForm')[0].reset();
+        $('#product_id_field, #category_id_field, #announcement_id_field').val('');
         $('#prod_image_preview, #prod_existing_images, #variantsListWrapper').empty();
         $('#productCrudTabs').hide();
         currentProductImages = [];

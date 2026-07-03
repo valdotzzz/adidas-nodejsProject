@@ -13,7 +13,7 @@ const Review = require('./Review');
 const AuditLog = require('./AuditLog');
 const Wishlist = require('./Wishlist');
 const Notification = require('./Notification');
-const Announcement = require('./Announcement');
+const Announcement = require('./announcement');
 
 const db = {
     User, Category, Product, ProductImage,
