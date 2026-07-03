@@ -15,6 +15,8 @@ const checkoutRoutes = require('./routes/checkoutRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const variantRoutes = require('./routes/variantRoutes');
 const variantItemRoutes = require('./routes/variantItemRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 
 const app = express();
@@ -36,6 +38,8 @@ app.use('/api/checkout', checkoutRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/products/:productId/variants', variantRoutes);
 app.use('/api/variants', variantItemRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/uploads', express.static('public/uploads'));
 
 

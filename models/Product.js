@@ -39,6 +39,13 @@ const Product = sequelize.define('Product', {
     is_exclusive: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    // Simple sale flag for now: when set (and lower than `price`), the product is "on sale".
+    // This is deliberately minimal — a fuller SaleEvent/collection system can plug into this
+    // same field later without breaking anything that reads it.
+    sale_price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
     }
 }, {
     tableName: 'products',

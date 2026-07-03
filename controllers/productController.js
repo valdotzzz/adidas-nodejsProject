@@ -1,4 +1,29 @@
-const { Product, Variant, ProductImage, Category } = require('../models');
+const db = require('../models');
+const { Product, Variant, ProductImage, Category, Wishlist, Notification } = db;
+
+// Fires whenever a product update lowers/adds a sale_price such that the product just
+// became "on sale" (it wasn't before, or the discount just deepened for the first time
+// coming off a non-sale price). Notifies everyone who has it wishlisted.
+async function notifyWishlistersIfNewlyOnSale(product, previousSalePrice) {
+    const wasOnSale = previousSalePrice != null && parseFloat(previousSalePrice) < parseFloat(product.price);
+    const isOnSaleNow = product.sale_price != null && parseFloat(product.sale_price) < parseFloat(product.price);
+
+    if (!isOnSaleNow || wasOnSale) return; // only notify on the transition into "on sale"
+
+    const wishlisters = await Wishlist.findAll({ where: { product_id: product.id } });
+    if (wishlisters.length === 0) return;
+
+    const message = `${product.name} is now on sale for ₱${parseFloat(product.sale_price).toFixed(2)} (was ₱${parseFloat(product.price).toFixed(2)}).`;
+
+    await Notification.bulkCreate(
+        wishlisters.map(w => ({
+            user_id: w.user_id,
+            product_id: product.id,
+            type: 'wishlist_sale',
+            message
+        }))
+    );
+}
 
 // Accepts a comma- or newline-separated string of image URLs and returns a
 // clean array, dropping blanks and anything that isn't a plausible http(s) URL.
@@ -14,7 +39,7 @@ function parseImageUrls(raw) {
 exports.createProduct = async (req, res) => {
     try {
         // Ensure category_id is pulled from the payload request body
-        const { name, style_code, description, price, gender, category_id, is_exclusive, variants } = req.body;
+        const { name, style_code, description, price, gender, category_id, is_exclusive, sale_price, variants } = req.body;
 
         // Verify category exists
         const category = await Category.findByPk(category_id);
@@ -30,6 +55,7 @@ exports.createProduct = async (req, res) => {
             price,
             gender,
             is_exclusive: is_exclusive || false,
+            sale_price: sale_price ? sale_price : null,
             category_id
         });
         
@@ -93,7 +119,20 @@ exports.updateProduct = async (req, res) => {
         // keys are handled separately below so they don't get written onto
         // the Product row itself.
         const { image_urls, remove_image_ids, ...productFields } = req.body;
+
+        // FormData sends an empty string when the admin clears the Sale Price field —
+        // normalize that to null so the DECIMAL column (and "on sale" checks) behave.
+        if (productFields.sale_price === '') {
+            productFields.sale_price = null;
+        }
+
+        // Snapshot the previous sale_price so we can tell, after saving, whether this
+        // update just *put the product on sale* (as opposed to it already being on sale).
+        const previousSalePrice = product.sale_price;
         await product.update(productFields);
+        notifyWishlistersIfNewlyOnSale(product, previousSalePrice).catch(err =>
+            console.error('Wishlist sale notification failed:', err.message)
+        );
 
         // Save newly uploaded image files, if any
         if (req.files && req.files.length > 0) {
@@ -152,8 +191,6 @@ exports.deleteProduct = async (req, res) => {
         return res.status(500).json({ message: 'Server error deleting product.', error: error.message });
     }
 };
-
-const db = require('../models');
 
 // GET /api/products/trash — list soft-deleted products (admin/staff)
 exports.getDeletedProducts = async (req, res) => {

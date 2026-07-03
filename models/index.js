@@ -12,10 +12,13 @@ const Address = require('./Address');
 const CartItem = require('./CartItem');
 const Review = require('./Review');
 const AuditLog = require('./AuditLog');
+const Wishlist = require('./Wishlist');
+const Notification = require('./Notification');
 
 const db = {
     User, Category, Product, ProductImage,
     Variant, Order, OrderItem, Address, CartItem, Review, AuditLog,
+    Wishlist, Notification,
     sequelize, Sequelize
 };
 
@@ -54,5 +57,17 @@ db.CartItem.belongsTo(db.Variant, { foreignKey: 'variant_id' });
 
 db.User.hasMany(db.AuditLog, { foreignKey: 'user_id' });
 db.AuditLog.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.User.hasMany(db.Wishlist, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.Wishlist.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.Product.hasMany(db.Wishlist, { foreignKey: 'product_id', onDelete: 'CASCADE' });
+db.Wishlist.belongsTo(db.Product, { foreignKey: 'product_id' });
+
+db.User.hasMany(db.Notification, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.Notification.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.Product.hasMany(db.Notification, { foreignKey: 'product_id', onDelete: 'SET NULL' });
+db.Notification.belongsTo(db.Product, { foreignKey: 'product_id' });
 
 module.exports = db;

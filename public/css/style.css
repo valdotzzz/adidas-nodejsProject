@@ -6586,3 +6586,175 @@ table.dataTable td {
     opacity: 1;
     pointer-events: auto;
 }
+/* ===================== WISHLIST & NOTIFICATIONS (header dropdowns) ===================== */
+.mini-wishlist-wrapper,
+.mini-notif-wrapper {
+    position: relative;
+}
+
+.mini-notif-dropdown {
+    position: absolute;
+    top: calc(100% + 14px);
+    right: -10px;
+    width: 320px;
+    background: #0a0a0a;
+    border: 1px solid #222;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200;
+}
+
+.mini-notif-dropdown::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: 18px;
+    width: 12px;
+    height: 12px;
+    background: #0a0a0a;
+    border-left: 1px solid #222;
+    border-top: 1px solid #222;
+    transform: rotate(45deg);
+}
+
+.mini-notif-dropdown.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.mini-notif-mark-all {
+    background: none;
+    border: none;
+    color: #9cf;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.mini-notif-item {
+    display: block;
+    padding: 14px 20px;
+    border-bottom: 1px solid #1a1a1a;
+    text-decoration: none;
+    color: #ccc;
+}
+
+.mini-notif-item:last-child { border-bottom: none; }
+
+.mini-notif-item--unread {
+    background: #131313;
+    box-shadow: inset 3px 0 0 #fff;
+}
+
+.mini-notif-item__msg {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #eee;
+    margin-bottom: 4px;
+}
+
+.mini-notif-item__date {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mini-notif-empty {
+    padding: 30px 20px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+}
+
+/* ===================== WISHLIST HEART TOGGLE (product cards + PDP) ===================== */
+.wishlist-heart-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.wishlist-heart-btn:hover { transform: scale(1.08); }
+
+.wishlist-heart-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: #fff;
+    fill: none;
+    stroke-width: 1.8;
+    transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.wishlist-heart-btn.is-active svg {
+    fill: #ff4d4d;
+    stroke: #ff4d4d;
+}
+
+.wishlist-heart-btn--pdp {
+    position: static;
+    width: 55px;
+    height: 55px;
+    border-radius: 0;
+    border: 1.5px solid #444;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+/* ===================== SALE PRICE DISPLAY ===================== */
+.price--on-sale {
+    color: #ff4d4d !important;
+}
+
+.price--original {
+    color: #777;
+    text-decoration: line-through;
+    font-weight: 400;
+    font-size: 0.75em;
+    margin-right: 8px;
+}
+
+.product-card__badge--sale {
+    background: #ff4d4d;
+    color: #fff;
+}
+
+/* ===================== WISHLIST PAGE GRID ===================== */
+.wishlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 24px;
+}
+
+.wishlist-remove-btn {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 6px 10px;
+    cursor: pointer;
+    z-index: 5;
+}
