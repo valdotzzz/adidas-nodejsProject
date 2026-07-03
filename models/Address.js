@@ -51,10 +51,19 @@ const Address = sequelize.define('Address', {
     is_default: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    // True for addresses that show up in the user's saved address book.
+    // False for one-off addresses entered at checkout without "save this
+    // address" checked — they still need a row to satisfy Order.address_id,
+    // they just don't clutter the address book.
+    is_saved: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
     tableName: 'addresses',
-    timestamps: true
+    timestamps: true,
+    paranoid: true // an address referenced by past orders must never be hard-deleted
 });
 
 module.exports = Address;

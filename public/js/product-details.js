@@ -406,33 +406,18 @@ $(document).ready(function() {
 
         btn.prop('disabled', true).text('Adding...');
 
-        $.ajax({
-            url: '/api/cart',
-            method: 'POST',
-            contentType: 'application/json',
-            headers: { 'Authorization': 'Bearer ' + token },
-            data: JSON.stringify({
-                variant_id: selectedVariantId,
-                quantity: quantity
-            }),
-            success: function(response) {
-                btn.text('Added To Cart!').removeClass('btn-primary').addClass('btn-outline');
-                $feedback.css('color', '#9f9').text(response.message || 'Added to cart!').show();
+        // Cart lives in localStorage now -- no DB round trip to add an item.
+        CartStore.add(selectedVariantId, quantity);
 
-                    loadCartCount(token);
+        btn.text('Added To Cart!').removeClass('btn-primary').addClass('btn-outline');
+        $feedback.css('color', '#9f9').text('Added to cart!').show();
 
+        loadCartCount(token);
 
-                setTimeout(() => {
-                    btn.text('Add to Cart').removeClass('btn-outline').addClass('btn-primary').prop('disabled', false);
-                    $feedback.fadeOut();
-                }, 1800);
-            },
-            error: function(xhr) {
-                btn.prop('disabled', false).text('Add to Cart');
-                const msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Could not add item to cart.';
-                $feedback.css('color', '#f88').text(msg).show();
-            }
-        });
+        setTimeout(() => {
+            btn.text('Add to Cart').removeClass('btn-outline').addClass('btn-primary').prop('disabled', false);
+            $feedback.fadeOut();
+        }, 1800);
     });
 
     // 6. Wishlist Toggle

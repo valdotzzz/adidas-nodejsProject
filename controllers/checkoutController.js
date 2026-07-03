@@ -1,157 +1,184 @@
 const db = require('../models');
-const { CartItem, Variant, Product, Order, OrderItem, Address, User } = db;
+const { Variant, Product, Order, OrderItem, Address, User } = db;
 const { sendOrderConfirmationEmail } = require('../utils/sendOrderEmail');
 
-// GET /api/checkout — cart summary + user's saved addresses (for the checkout page to render)
-exports.getCheckoutData = async (req, res) => {
-    try {
-        const cartItems = await CartItem.findAll({
-            where: { user_id: req.user.id },
-            include: [{ model: Variant, include: [Product] }]
-        });
+const DISCOUNT_RATE = 0.20; // RA 9994 / RA 10754 -- PWD & Senior Citizen
+const FREE_SHIPPING_THRESHOLD = 3000;
+const SHIPPING_FEE = 150;
 
-        if (cartItems.length === 0) {
-            return res.status(400).json({ message: 'Your cart is empty.' });
-        }
+function effectivePrice(product) {
+    const price = parseFloat(product.price);
+    const sale = product.sale_price !== null && product.sale_price !== undefined
+        ? parseFloat(product.sale_price)
+        : null;
+    return (sale !== null && sale < price) ? sale : price;
+}
 
-        let subtotal = 0;
-        cartItems.forEach(item => {
-            subtotal += parseFloat(item.Variant.Product.price) * item.quantity;
-        });
+// Re-derives total_amount straight from the persisted order_items rows
+// (never from whatever was computed pre-insert). This is the enforcement
+// point: total_amount can never drift from what's actually in order_items.
+async function recalculateOrderTotal(order, transaction) {
+    const items = await OrderItem.findAll({ where: { order_id: order.id }, transaction });
+    const itemsTotal = items.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0);
+    const total = itemsTotal - parseFloat(order.discount_amount) + parseFloat(order.shipping_fee);
 
-        const shippingFee = subtotal >= 3000 ? 0 : 150;
-        const total = subtotal + shippingFee;
+    order.total_amount = Math.max(total, 0).toFixed(2);
+    await order.save({ transaction });
+    return order.total_amount;
+}
 
-        const addresses = await Address.findAll({ where: { user_id: req.user.id } });
-
-        return res.status(200).json({
-            cartItems,
-            subtotal: subtotal.toFixed(2),
-            shipping_fee: shippingFee.toFixed(2),
-            total: total.toFixed(2),
-            addresses
-        });
-    } catch (error) {
-        return res.status(500).json({ message: 'Server error loading checkout.', error: error.message });
+// Validates + resolves the client-submitted cart against live DB data.
+// Throws { status, message } on any problem so callers can just await it.
+async function resolveAndValidateCart(items, transaction) {
+    if (!Array.isArray(items) || items.length === 0) {
+        throw { status: 400, message: 'Your cart is empty.' };
     }
-};
 
-// POST /api/checkout — place the order
+    const variantIds = [...new Set(items.map(i => parseInt(i.variant_id, 10)).filter(Boolean))];
+    const variants = await Variant.findAll({
+        where: { id: variantIds },
+        include: [Product],
+        transaction
+    });
+    const variantMap = new Map(variants.map(v => [v.id, v]));
+
+    const resolved = [];
+    for (const item of items) {
+        const variant = variantMap.get(parseInt(item.variant_id, 10));
+        const quantity = parseInt(item.quantity, 10) || 1;
+
+        if (!variant || !variant.Product) {
+            throw { status: 400, message: 'One of the items in your cart is no longer available.' };
+        }
+        if (variant.stock_level < quantity) {
+            throw {
+                status: 400,
+                message: `${variant.Product.name} (${variant.colorway}, ${variant.size_type} ${variant.size_value}) no longer has enough stock.`
+            };
+        }
+
+        resolved.push({ variant, quantity, price: effectivePrice(variant.Product) });
+    }
+    return resolved;
+}
+
+// Resolves which Address row this order should point to.
+// - address_id given -> must belong to this user.
+// - otherwise -> create a new Address row from the submitted fields.
+//   is_saved mirrors the "save this address" checkbox: unchecked means it
+//   still needs a row (Order.address_id is NOT NULL) but won't show up in
+//   the user's address book.
+async function resolveOrderAddress(req, transaction) {
+    const { address_id, full_name, phone, address_line, city, province, postal_code, save_address } = req.body;
+
+    if (address_id) {
+        const address = await Address.findOne({
+            where: { id: address_id, user_id: req.user.id },
+            transaction
+        });
+        if (!address) {
+            throw { status: 422, message: 'Selected address not found.' };
+        }
+        return address;
+    }
+
+    if (!full_name || !phone || !address_line || !city) {
+        throw { status: 422, message: 'Please complete all required shipping fields.' };
+    }
+
+    const existingCount = await Address.count({ where: { user_id: req.user.id, is_saved: true }, transaction });
+
+    return Address.create({
+        user_id: req.user.id,
+        label: 'Home',
+        address_type: 'shipping',
+        full_name, phone, address_line, city, province, postal_code,
+        is_default: existingCount === 0 && !!save_address,
+        is_saved: !!save_address
+    }, { transaction });
+}
+
+// POST /api/checkout -- place the order
+// Body: { items: [{variant_id, quantity}], address_id? | (full_name, phone, address_line, city, province, postal_code, save_address),
+//         discount_type?, discount_id_number?, payment_method? }
 exports.placeOrder = async (req, res) => {
-    const sequelize = db.sequelize;
-    const t = await sequelize.transaction();
+    const t = await db.sequelize.transaction();
 
     try {
-        const { full_name, phone, address_line, city, province, postal_code, payment_method } = req.body;
+        const cartLines = await resolveAndValidateCart(req.body.items, t);
+        const address = await resolveOrderAddress(req, t);
 
-        if (!full_name || !phone || !address_line || !city) {
-            await t.rollback();
-            return res.status(422).json({ message: 'Please complete all required shipping fields.' });
+        const discountType = ['pwd', 'senior'].includes(req.body.discount_type) ? req.body.discount_type : 'none';
+        if (discountType !== 'none' && !req.body.discount_id_number) {
+            throw { status: 422, message: 'Please provide a PWD / Senior Citizen ID number.' };
         }
 
-        const cartItems = await CartItem.findAll({
-            where: { user_id: req.user.id },
-            include: [{ model: Variant, include: [Product] }],
-            transaction: t
-        });
+        const subtotal = cartLines.reduce((sum, l) => sum + l.price * l.quantity, 0);
+        const discountAmount = discountType !== 'none' ? Math.round(subtotal * DISCOUNT_RATE * 100) / 100 : 0;
+        const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+        const provisionalTotal = Math.max(subtotal - discountAmount, 0) + shippingFee;
 
-        if (cartItems.length === 0) {
-            await t.rollback();
-            return res.status(400).json({ message: 'Your cart is empty.' });
-        }
-
-        // Validate stock for every item BEFORE creating anything
-        for (const item of cartItems) {
-            if (item.Variant.stock_level < item.quantity) {
-                await t.rollback();
-                return res.status(400).json({
-                    message: `${item.Variant.Product.name} (${item.Variant.colorway}, ${item.Variant.size_type} ${item.Variant.size_value}) no longer has enough stock.`
-                });
-            }
-        }
-
-        // Calculate totals server-side — never trust client-submitted prices
-        let subtotal = 0;
-        cartItems.forEach(item => {
-            subtotal += parseFloat(item.Variant.Product.price) * item.quantity;
-        });
-        const shippingFee = subtotal >= 3000 ? 0 : 150;
-        const total = subtotal + shippingFee;
-
-        // Create the Order
         const order = await Order.create({
             user_id: req.user.id,
-            total_amount: total,
+            address_id: address.id,
             status: 'pending',
-            full_name, phone, address_line, city, province, postal_code,
-            payment_method: payment_method || 'cod'
+            payment_method: req.body.payment_method || 'cod',
+            discount_type: discountType,
+            discount_id_number: discountType !== 'none' ? req.body.discount_id_number : null,
+            discount_amount: discountAmount,
+            shipping_fee: shippingFee,
+            total_amount: provisionalTotal // placeholder; recalculated below from order_items
         }, { transaction: t });
 
-        // Create OrderItems + decrement stock for each cart item
-        for (const item of cartItems) {
+        for (const line of cartLines) {
             await OrderItem.create({
                 order_id: order.id,
-                product_id: item.Variant.Product.id,
-                variant_id: item.Variant.id,
-                product_name: item.Variant.Product.name,
-                colorway: item.Variant.colorway,
-                size_type: item.Variant.size_type,
-                size_value: item.Variant.size_value,
-                price: item.Variant.Product.price,
-                quantity: item.quantity
+                product_id: line.variant.Product.id,
+                variant_id: line.variant.id,
+                price: line.price,
+                quantity: line.quantity
             }, { transaction: t });
 
-            await item.Variant.decrement('stock_level', { by: item.quantity, transaction: t });
+            await line.variant.decrement('stock_level', { by: line.quantity, transaction: t });
         }
 
-        // Save address to address book if requested
-        if (req.body.save_address) {
-            await Address.create({
-                user_id: req.user.id,
-                full_name, phone, address_line, city, province, postal_code
-            }, { transaction: t });
-        }
-
-        // Clear the cart
-        await CartItem.destroy({ where: { user_id: req.user.id }, transaction: t });
+        // Single source of truth: total_amount is now derived purely from
+        // the order_items rows that were actually persisted, not from the
+        // pre-insert calculation above.
+        await recalculateOrderTotal(order, t);
 
         await t.commit();
 
-        // ── Send confirmation email (after commit so data is fully saved) ──
-        // Re-fetch the order with all nested associations the email templates need
         try {
             const fullOrder = await Order.findByPk(order.id, {
                 include: [
                     { model: User },
-                    {
-                        model: OrderItem,
-                        include: [{
-                            model: Variant,
-                            include: [{ model: Product }]
-                        }]
-                    }
+                    { model: Address },
+                    { model: OrderItem, include: [{ model: Variant, include: [Product] }] }
                 ]
             });
-
             await sendOrderConfirmationEmail(fullOrder);
         } catch (emailErr) {
-            // Never block the order response if the email fails
             console.error('Order confirmation email failed:', emailErr.message);
         }
 
         return res.status(201).json({ message: 'Order placed successfully!', order });
     } catch (error) {
         await t.rollback();
-        return res.status(500).json({ message: 'Server error placing order.', error: error.message });
+        const status = error.status || 500;
+        return res.status(status).json({ message: error.message || 'Server error placing order.' });
     }
 };
 
-// GET /api/checkout/orders/:id — order confirmation / detail
+// GET /api/checkout/orders/:id -- order confirmation / detail
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findOne({
             where: { id: req.params.id, user_id: req.user.id },
-            include: [{ model: OrderItem }]
+            include: [
+                { model: Address },
+                { model: OrderItem, include: [{ model: Variant, include: [Product] }] }
+            ]
         });
 
         if (!order) {
@@ -164,12 +191,15 @@ exports.getOrderById = async (req, res) => {
     }
 };
 
-// GET /api/checkout/orders — list ALL of the logged-in user's past orders
+// GET /api/checkout/orders -- list ALL of the logged-in user's past orders
 exports.getMyOrders = async (req, res) => {
     try {
         const orders = await Order.findAll({
             where: { user_id: req.user.id },
-            include: [{ model: OrderItem }],
+            include: [
+                { model: Address },
+                { model: OrderItem, include: [{ model: Variant, include: [Product] }] }
+            ],
             order: [['createdAt', 'DESC']]
         });
 

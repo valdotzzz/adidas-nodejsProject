@@ -48,7 +48,9 @@ async function generatePdfBuffer(order) {
         doc.font('Helvetica-Bold').text('Items:', { underline: true });
         doc.font('Helvetica');
         items.forEach(item => {
-            doc.text(`  ${item.product_name} — ${item.colorway} ${item.size_type} ${item.size_value} x${item.quantity} @ ₱${parseFloat(item.price).toFixed(2)}`);
+            const variant = item.Variant || {};
+            const product = variant.Product || {};
+            doc.text(`  ${product.name || 'Item'} — ${variant.colorway || ''} ${variant.size_type || ''} ${variant.size_value || ''} x${item.quantity} @ ₱${parseFloat(item.price).toFixed(2)}`);
         });
 
         doc.moveDown();

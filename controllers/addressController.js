@@ -4,7 +4,7 @@ const { Address } = require('../models');
 exports.getAddresses = async (req, res) => {
     try {
         const addresses = await Address.findAll({
-            where: { user_id: req.user.id },
+            where: { user_id: req.user.id, is_saved: true },
             order: [['is_default', 'DESC'], ['createdAt', 'DESC']]
         });
         return res.status(200).json(addresses);

@@ -240,19 +240,19 @@ function setupAuthStates() {
 }
 
 function loadCartCount(token) {
-    $.ajax({
-        url: '/api/cart',
-        method: 'GET',
-        headers: { 'Authorization': 'Bearer ' + token },
-        success: function(cartItems) {
+    // Cart lives in localStorage now (see cart-store.js). This just resolves
+    // it against live product data for the count badge + mini cart preview.
+    CartStore.resolve(token)
+        .done(function(cartItems) {
             const totalQty = cartItems.reduce((sum, item) => sum + item.quantity, 0);
             if (totalQty > 0) {
                 $('#cart-count').text(totalQty).show();
+            } else {
+                $('#cart-count').hide();
             }
             renderMiniCart(cartItems);
-        },
-        error: function() {}
-    });
+        })
+        .fail(function() {});
 }
 
 function renderMiniCart(cartItems) {
@@ -279,7 +279,7 @@ function renderMiniCart(cartItems) {
     cartItems.forEach(item => {
         const variant  = item.Variant || {};
         const product  = variant.Product || {};
-        const price    = parseFloat(product.price || 0);
+        const price    = item.unit_price;
         const lineTotal = price * item.quantity;
         subtotal += lineTotal;
 

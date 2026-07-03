@@ -33,7 +33,7 @@ function orderConfirmationTemplate(order) {
     const itemRows = items.map(item => {
         const variant = item.Variant || {};
         const product = variant.Product || {};
-        const lineTotal = fmt(parseFloat(product.price || 0) * item.quantity);
+        const lineTotal = fmt(parseFloat(item.price || 0) * item.quantity);
         return `
         <div class="product-row">
             <div>
@@ -253,8 +253,8 @@ function orderConfirmationTemplate(order) {
         <div class="delivery-box">
             <p>
                 <strong>${address.full_name || user.name || ''}</strong><br>
-                ${address.street || ''}<br>
-                ${address.city || ''}, ${address.province || ''} ${address.zip_code || ''}<br>
+                ${address.address_line || ''}<br>
+                ${address.city || ''}, ${address.province || ''} ${address.postal_code || ''}<br>
                 📞 ${address.phone || user.phone || ''}
             </p>
             <div class="payment-badge">Payment: ${paymentLabel}</div>

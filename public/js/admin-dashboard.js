@@ -320,10 +320,12 @@ $(document).ready(function () {
                         <th style="padding:8px 4px; text-align:right;">Price</th>
                     </tr></thead><tbody>`;
                 items.forEach(item => {
+                    const variant = item.Variant || {};
+                    const product = variant.Product || {};
                     html += `<tr style="border-bottom:1px solid #1a1a1a;">
-                        <td style="padding:10px 4px;">${item.product_name}</td>
-                        <td style="padding:10px 4px; text-align:center;">${item.size_type} ${item.size_value}</td>
-                        <td style="padding:10px 4px; text-align:center;">${item.colorway || '—'}</td>
+                        <td style="padding:10px 4px;">${product.name || 'Product'}</td>
+                        <td style="padding:10px 4px; text-align:center;">${variant.size_type || ''} ${variant.size_value || ''}</td>
+                        <td style="padding:10px 4px; text-align:center;">${variant.colorway || '—'}</td>
                         <td style="padding:10px 4px; text-align:center;">${item.quantity}</td>
                         <td style="padding:10px 4px; text-align:right;">₱${parseFloat(item.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>`;

@@ -24,7 +24,7 @@ $(document).ready(function() {
             $('#order-number').text('#' + String(order.id).padStart(6, '0'));
             $('#order-payment').text((order.payment_method || 'cod').toUpperCase());
             $('#order-total').text('₱' + parseFloat(order.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }));
-            $('#order-address').text(`${order.address_line}, ${order.city}`);
+            $('#order-address').text(`${order.Address.address_line}, ${order.Address.city}`);
         },
         error: function(xhr) {
             $('#order-loading').text('Could not load order details.');

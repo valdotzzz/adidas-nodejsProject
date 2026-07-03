@@ -15,11 +15,8 @@ $(document).ready(function() {
     }
 
     function loadCart() {
-        $.ajax({
-            url: '/api/cart',
-            method: 'GET',
-            headers: { 'Authorization': 'Bearer ' + token },
-            success: function(cartItems) {
+        CartStore.resolve(token)
+            .done(function(cartItems) {
                 $('#cart-loading').hide();
 
                 if (!cartItems || cartItems.length === 0) {
@@ -31,14 +28,13 @@ $(document).ready(function() {
                 renderCartItems(cartItems);
                 updateSummary(cartItems);
                 $('#cart-layout').css('display', 'grid');
-            },
-            error: function(xhr) {
+            })
+            .fail(function(xhr) {
                 $('#cart-loading').hide();
                 console.error('Failed to load cart:', xhr.responseText);
                 $('#cart-empty').show();
                 $('#cart-layout').hide();
-            }
-        });
+            });
     }
 
     function renderCartItems(cartItems) {
@@ -58,14 +54,14 @@ $(document).ready(function() {
                 ? resolveProductImage(images[0].image_path)
                 : resolveProductImage(null);
 
-            const lineTotal = (parseFloat(product.price) * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            const lineTotal = (item.unit_price * item.quantity).toLocaleString('en-US', { minimumFractionDigits: 2 });
             const lowStock = variant.stock_level > 0 && variant.stock_level <= 5;
-            
+
             // Track dynamic maximum bounds based on database stock level (capped at 10)
             const maxQty = Math.min(variant.stock_level, 10) || 1;
 
             const rowHtml = `
-                <div class="cart-row" data-item-id="${item.id}">
+                <div class="cart-row" data-variant-id="${item.variant_id}">
                     <div class="cart-row__image">
                         <img src="${imageSrc}" alt="${product.name}">
                     </div>
@@ -111,10 +107,8 @@ $(document).ready(function() {
         let subtotal = 0;
         let totalItems = 0;
         cartItems.forEach(item => {
-            if (item.Variant && item.Variant.Product) {
-                subtotal += parseFloat(item.Variant.Product.price) * item.quantity;
-                totalItems += item.quantity;
-            }
+            subtotal += item.unit_price * item.quantity;
+            totalItems += item.quantity;
         });
 
         const shipping = subtotal >= 3000 ? 0 : 150;
@@ -134,26 +128,13 @@ $(document).ready(function() {
         }
     }
 
-    function updateQuantity(itemId, newQty) {
-        $.ajax({
-            url: `/api/cart/${itemId}`,
-            method: 'PUT',
-            contentType: 'application/json',
-            headers: { 'Authorization': 'Bearer ' + token },
-            data: JSON.stringify({ quantity: newQty }),
-            success: function() { 
-                loadCart(); 
-            },
-            error: function(xhr) {
-                alert((xhr.responseJSON && xhr.responseJSON.message) || 'Could not update quantity.');
-                loadCart(); // Reload state to reset the input value to its previous valid state
-            }
-        });
+    function updateQuantity(variantId, newQty) {
+        CartStore.updateQuantity(variantId, newQty);
+        loadCart();
     }
 
-    /* --- New Stepper Element Interactive Handlers --- */
+    /* --- Stepper Element Interactive Handlers --- */
 
-    // 1. Minus Button Handler
     $(document).on('click', '.qty-minus', function() {
         const $input = $(this).siblings('.qty-input');
         let currentVal = parseInt($input.val()) || 1;
@@ -162,12 +143,11 @@ $(document).ready(function() {
         }
     });
 
-    // 2. Plus Button Handler
     $(document).on('click', '.qty-plus', function() {
         const $input = $(this).siblings('.qty-input');
         const maxVal = parseInt($input.attr('max')) || 10;
         let currentVal = parseInt($input.val()) || 1;
-        
+
         if (currentVal < maxVal) {
             $input.val(currentVal + 1).trigger('change');
         } else {
@@ -175,12 +155,11 @@ $(document).ready(function() {
         }
     });
 
-    // 3. Direct Manual Entry Input Validation Change Trigger
     $(document).on('change', '.qty-input', function() {
         const $input = $(this);
         const $row = $input.closest('.cart-row');
-        const itemId = $row.data('item-id');
-        
+        const variantId = $row.data('variant-id');
+
         let minVal = parseInt($input.attr('min')) || 1;
         let maxVal = parseInt($input.attr('max')) || 10;
         let newVal = parseInt($input.val());
@@ -193,23 +172,15 @@ $(document).ready(function() {
         }
 
         $input.val(newVal);
-        updateQuantity(itemId, newVal);
+        updateQuantity(variantId, newVal);
     });
 
-    // Remove Item Handler
     $(document).on('click', '.remove-item-btn', function() {
-        const itemId = $(this).closest('.cart-row').data('item-id');
+        const variantId = $(this).closest('.cart-row').data('variant-id');
         if (!confirm('Remove this item from your bag?')) return;
 
-        $.ajax({
-            url: `/api/cart/${itemId}`,
-            method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + token },
-            success: function() { loadCart(); },
-            error: function(xhr) {
-                alert((xhr.responseJSON && xhr.responseJSON.message) || 'Could not remove item.');
-            }
-        });
+        CartStore.remove(variantId);
+        loadCart();
     });
 
     $('#checkoutBtn').on('click', function() {

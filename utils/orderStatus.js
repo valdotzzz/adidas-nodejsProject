@@ -89,7 +89,7 @@ function orderStatusTemplate(order) {
     const itemRows = items.map(item => {
         const variant = item.Variant || {};
         const product = variant.Product || {};
-        const lineTotal = fmt(parseFloat(product.price || 0) * item.quantity);
+        const lineTotal = fmt(parseFloat(item.price || 0) * item.quantity);
         return `
         <div class="product-row">
             <div>

@@ -3,13 +3,12 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // -- helpers --------------------------------------------------------------
 
-    // Returns a Date that is `daysAgo` days before now, with a random hour
     function daysBack(daysAgo) {
       const d = new Date();
       d.setDate(d.getDate() - daysAgo);
-      d.setHours(Math.floor(Math.random() * 12) + 8); // 08:00 – 19:59
+      d.setHours(Math.floor(Math.random() * 12) + 8); // 08:00 - 19:59
       d.setMinutes(Math.floor(Math.random() * 60));
       return d;
     }
@@ -19,50 +18,40 @@ module.exports = {
       `SELECT id, email FROM users WHERE deletedAt IS NULL;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
+    const addresses = await queryInterface.sequelize.query(
+      `SELECT id, user_id FROM addresses WHERE deletedAt IS NULL;`,
+      { type: Sequelize.QueryTypes.SELECT }
+    );
     const variants = await queryInterface.sequelize.query(
       `SELECT v.id, v.colorway, v.size_type, v.size_value, v.product_id,
-              p.name AS product_name, p.price, p.style_code
+              p.name AS product_name, p.price, p.sale_price, p.style_code
        FROM variants v JOIN products p ON v.product_id = p.id
        WHERE v.stock_level > 0;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
 
     if (!users.length || !variants.length) {
-      throw new Error('Orders seeder: users or variants not found — run prior seeders first.');
+      throw new Error('Orders seeder: users or variants not found -- run prior seeders first.');
+    }
+    if (!addresses.length) {
+      throw new Error('Orders seeder: addresses not found -- run the demo-addresses seeder first.');
     }
 
     const uid  = (email) => users.find(u => u.email === email)?.id;
     const pick = (arr)   => arr[Math.floor(Math.random() * arr.length)];
+    const addressForUser = (userId) => addresses.find(a => a.user_id === userId)?.id;
+    const effectivePrice = (v) => {
+      const price = parseFloat(v.price);
+      const sale = v.sale_price !== null && v.sale_price !== undefined ? parseFloat(v.sale_price) : null;
+      return (sale !== null && sale < price) ? sale : price;
+    };
 
-    // Status distribution weighted toward realistic spread
     const statuses = [
       'completed','completed','completed','completed','completed',
       'completed','pending','pending','cancelled'
     ];
-
-    // Shipping snapshots (not FK'd — intentional receipt freeze pattern)
-    const addresses = [
-      { full_name: 'Gean Valdez',  phone: '09171234567', address_line: '123 Rizal St', city: 'Manila',    province: 'Metro Manila', postal_code: '1000' },
-      { full_name: 'Jane Doe',     phone: '09281234567', address_line: '45 Magsaysay Ave', city: 'Cebu City', province: 'Cebu',        postal_code: '6000' },
-      { full_name: 'Mark Reyes',   phone: '09391234567', address_line: '78 Burgos St',  city: 'Davao City', province: 'Davao del Sur',postal_code: '8000' },
-    ];
-
     const paymentMethods = ['cod', 'gcash', 'paypal', 'credit_card'];
-
-    // ── build order + orderItem rows ─────────────────────────────────────────
-
-    // 60 orders spread across the past 90 days
-    // Distribution: ~25 in last 7d, ~20 in 8-30d, ~15 beyond 30d
-    const orderDays = [
-      // last 7 days — lots of activity
-      1,1,2,2,3,3,4,4,5,5,6,6,7,7,
-      // 8–30 days
-      9,10,12,14,16,18,20,22,24,26,28,30,
-      // 31–90 days — older history
-      35,40,45,50,55,60,65,70,75,80,85,90,
-      // extra recent orders to spike the bar chart
-      1,2,3,4,5,6,7,1,2,3
-    ];
+    const discountTypes = ['none', 'none', 'none', 'none', 'pwd', 'senior']; // ~1/3 have a discount
 
     const customerIds = [
       uid('gean@customer.com'),
@@ -70,41 +59,53 @@ module.exports = {
       uid('mark@customer.com'),
     ].filter(Boolean);
 
-    if (!customerIds.length) throw new Error('Customer users not found — seed users first.');
+    if (!customerIds.length) throw new Error('Customer users not found -- seed users first.');
 
-    const orderRows    = [];
-    const orderItemBatches = []; // [{orderIndex, items:[]}]
+    // 60 orders spread across the past 90 days
+    const orderDays = [
+      1,1,2,2,3,3,4,4,5,5,6,6,7,7,
+      9,10,12,14,16,18,20,22,24,26,28,30,
+      35,40,45,50,55,60,65,70,75,80,85,90,
+      1,2,3,4,5,6,7,1,2,3
+    ];
 
-    orderDays.forEach((daysAgo, i) => {
+    const orderRows = [];
+    const orderItemBatches = []; // parallel array of { items, discountType }
+
+    orderDays.forEach((daysAgo) => {
       const orderDate  = daysBack(daysAgo);
-      const addr       = pick(addresses);
       const status     = pick(statuses);
       const userId     = pick(customerIds);
-      const numItems   = Math.floor(Math.random() * 3) + 1; // 1–3 items per order
-      const items      = [];
-      let   total      = 0;
+      const addressId  = addressForUser(userId);
+      const discountType = pick(discountTypes);
+      const numItems   = Math.floor(Math.random() * 3) + 1; // 1-3 items per order
 
+      const items = [];
+      let subtotal = 0;
       for (let j = 0; j < numItems; j++) {
-        const v   = pick(variants);
-        const qty = Math.floor(Math.random() * 2) + 1;
-        const price = parseFloat(v.price);
-        total += price * qty;
+        const v     = pick(variants);
+        const qty   = Math.floor(Math.random() * 2) + 1;
+        const price = effectivePrice(v);
+        subtotal += price * qty;
         items.push({ v, qty, price });
       }
 
+      const discountAmount = discountType !== 'none' ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
+      const shippingFee    = subtotal >= 3000 ? 0 : 150;
+      const total           = Math.max(subtotal - discountAmount, 0) + shippingFee;
+
       orderRows.push({
-        user_id:        userId,
+        user_id:             userId,
+        address_id:          addressId,
         status,
-        total_amount:   parseFloat(total.toFixed(2)),
-        full_name:      addr.full_name,
-        phone:          addr.phone,
-        address_line:   addr.address_line,
-        city:           addr.city,
-        province:       addr.province,
-        postal_code:    addr.postal_code,
-        payment_method: pick(paymentMethods),
-        createdAt:      orderDate,
-        updatedAt:      orderDate
+        payment_method:      pick(paymentMethods),
+        discount_type:       discountType,
+        discount_id_number:  discountType !== 'none' ? 'DISC-' + Math.floor(100000 + Math.random() * 900000) : null,
+        discount_amount:     discountAmount,
+        shipping_fee:        shippingFee,
+        total_amount:        parseFloat(total.toFixed(2)),
+        createdAt:           orderDate,
+        updatedAt:           orderDate
       });
 
       orderItemBatches.push(items);
@@ -112,7 +113,6 @@ module.exports = {
 
     await queryInterface.bulkInsert('Orders', orderRows, {});
 
-    // Re-fetch the inserted orders to get their real IDs (in insertion order)
     const insertedOrders = await queryInterface.sequelize.query(
       `SELECT id, createdAt FROM \`Orders\` ORDER BY id ASC LIMIT ${orderRows.length};`,
       { type: Sequelize.QueryTypes.SELECT }
@@ -123,16 +123,13 @@ module.exports = {
       const items = orderItemBatches[i];
       items.forEach(({ v, qty, price }) => {
         orderItemRows.push({
-          order_id:     order.id,
-          variant_id:   v.id,
-          product_name: v.product_name,
-          colorway:     v.colorway,
-          size_type:    v.size_type,
-          size_value:   v.size_value,
+          order_id:   order.id,
+          product_id: v.product_id,
+          variant_id: v.id,
           price,
-          quantity:     qty,
-          createdAt:    order.createdAt,
-          updatedAt:    order.createdAt
+          quantity:   qty,
+          createdAt:  order.createdAt,
+          updatedAt:  order.createdAt
         });
       });
     });
