@@ -135,6 +135,10 @@ exports.placeOrder = async (req, res) => {
                 order_id: order.id,
                 product_id: line.variant.Product.id,
                 variant_id: line.variant.id,
+                product_name: line.variant.Product.name,
+                colorway: line.variant.colorway,
+                size_type: line.variant.size_type,
+                size_value: line.variant.size_value,
                 price: line.price,
                 quantity: line.quantity
             }, { transaction: t });

@@ -7,36 +7,62 @@ $(document).ready(function() {
     }
 
     let checkoutData = null;
-    let discountRate = 0.20;
+    // Mirrors the constants in controllers/checkoutController.js — there is
+    // no GET /api/checkout endpoint (the cart lives in localStorage now, see
+    // cart-store.js), so the summary is built client-side from
+    // /api/cart/resolve + /api/addresses instead.
+    const DISCOUNT_RATE = 0.20;
+    const FREE_SHIPPING_THRESHOLD = 3000;
+    const SHIPPING_FEE = 150;
+    let discountRate = DISCOUNT_RATE;
     let selectedSavedCardId = null;
 
     loadCheckout();
 
     function loadCheckout() {
-        $.ajax({
-            url: '/api/checkout',
-            method: 'GET',
-            headers: { 'Authorization': 'Bearer ' + token },
-            success: function(data) {
-                checkoutData = data;
-                discountRate = parseFloat(data.discount_rate) || 0.20;
-                $('#checkout-loading').hide();
-                $('#checkout-layout').css('display', 'grid');
+        const cartItems = CartStore.read();
 
-                renderOrderSummary(data);
-                renderSavedAddresses(data.addresses);
-                renderSavedCards(data.cards);
-            },
-            error: function(xhr) {
-                $('#checkout-loading').hide();
+        if (cartItems.length === 0) {
+            $('#checkout-loading').hide();
+            $('#checkout-empty').show();
+            return;
+        }
 
-                if (xhr.status === 400) {
-                    // Cart is empty
-                    $('#checkout-empty').show();
-                } else {
-                    alert((xhr.responseJSON && xhr.responseJSON.message) || 'Could not load checkout.');
-                }
+        $.when(
+            CartStore.resolve(token),
+            $.ajax({ url: '/api/addresses', method: 'GET', headers: { 'Authorization': 'Bearer ' + token } })
+        ).done(function(resolvedResp, addressesResp) {
+            const resolved = resolvedResp[0];
+            const addresses = addressesResp[0];
+
+            if (!resolved || resolved.length === 0) {
+                $('#checkout-loading').hide();
+                $('#checkout-empty').show();
+                return;
             }
+
+            const subtotal = resolved.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+            const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+
+            checkoutData = {
+                cartItems: resolved,
+                addresses: addresses,
+                cards: [], // saved cards aren't implemented server-side yet
+                subtotal: subtotal,
+                shipping_fee: shippingFee,
+                discount_rate: DISCOUNT_RATE
+            };
+            discountRate = DISCOUNT_RATE;
+
+            $('#checkout-loading').hide();
+            $('#checkout-layout').css('display', 'grid');
+
+            renderOrderSummary(checkoutData);
+            renderSavedAddresses(checkoutData.addresses);
+            renderSavedCards(checkoutData.cards);
+        }).fail(function(xhr) {
+            $('#checkout-loading').hide();
+            alert((xhr.responseJSON && xhr.responseJSON.message) || 'Could not load checkout.');
         });
     }
 
@@ -223,6 +249,7 @@ $(document).ready(function() {
         const paymentMethod = $('input[name="payment_method"]:checked').val();
 
         const payload = {
+            items: CartStore.read(),
             full_name: $('#full_name').val().trim(),
             phone: $('#phone').val().trim(),
             address_line: $('#address_line').val().trim(),
@@ -288,6 +315,7 @@ $(document).ready(function() {
             headers: { 'Authorization': 'Bearer ' + token },
             data: JSON.stringify(payload),
             success: function(response) {
+                CartStore.clear();
                 // Redirect to a confirmation page, passing the new order id
                 window.location.href = `order-confirmation.html?id=${response.order.id}`;
             },
