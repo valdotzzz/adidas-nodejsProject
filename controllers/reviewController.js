@@ -1,12 +1,23 @@
 const db = require('../models');
-const { Review, OrderItem, Order, Product, User } = db;
+const { Review, ReviewImage, OrderItem, Order, Product, User } = db;
+
+// Accepts a comma- or newline-separated string of review image IDs to remove
+// and normalizes it into a clean array of ints, dropping blanks.
+function parseRemoveIds(raw) {
+    if (!raw) return [];
+    let ids = raw;
+    if (typeof ids === 'string') {
+        try { ids = JSON.parse(ids); } catch { ids = ids.split(',').map(s => s.trim()); }
+    }
+    return (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+}
 
 // GET /api/reviews/product/:productId — public, list reviews for a product
 exports.getProductReviews = async (req, res) => {
     try {
         const reviews = await Review.findAll({
             where: { product_id: req.params.productId },
-            include: [{ model: User, attributes: ['id', 'name'] }],
+            include: [{ model: User, attributes: ['id', 'name'] }, ReviewImage],
             order: [['createdAt', 'DESC']]
         });
 
@@ -63,7 +74,19 @@ exports.createReview = async (req, res) => {
             comment
         });
 
-        return res.status(201).json({ message: 'Review submitted successfully.', review });
+        if (req.files && req.files.length > 0) {
+            const imageData = req.files.map(file => ({
+                review_id: review.id,
+                image_path: `/uploads/${file.filename}`
+            }));
+            await ReviewImage.bulkCreate(imageData);
+        }
+
+        const fullReview = await Review.findByPk(review.id, {
+            include: [{ model: User, attributes: ['id', 'name'] }, ReviewImage]
+        });
+
+        return res.status(201).json({ message: 'Review submitted successfully.', review: fullReview });
     } catch (error) {
         return res.status(500).json({ message: 'Server error submitting review.', error: error.message });
     }
@@ -72,7 +95,7 @@ exports.createReview = async (req, res) => {
 // PUT /api/reviews/:id — edit own review
 exports.updateReview = async (req, res) => {
     try {
-        const { rating, comment } = req.body;
+        const { rating, comment, remove_image_ids } = req.body;
 
         if (!rating || rating < 1 || rating > 5) {
             return res.status(422).json({ message: 'Rating must be between 1 and 5.' });
@@ -90,7 +113,26 @@ exports.updateReview = async (req, res) => {
         review.comment = comment;
         await review.save();
 
-        return res.status(200).json({ message: 'Review updated successfully.', review });
+        // Add any newly uploaded photos
+        if (req.files && req.files.length > 0) {
+            const imageData = req.files.map(file => ({
+                review_id: review.id,
+                image_path: `/uploads/${file.filename}`
+            }));
+            await ReviewImage.bulkCreate(imageData);
+        }
+
+        // Remove any photos the user unchecked/deleted
+        const removeIds = parseRemoveIds(remove_image_ids);
+        if (removeIds.length > 0) {
+            await ReviewImage.destroy({ where: { id: removeIds, review_id: review.id } });
+        }
+
+        const updatedReview = await Review.findByPk(review.id, {
+            include: [{ model: User, attributes: ['id', 'name'] }, ReviewImage]
+        });
+
+        return res.status(200).json({ message: 'Review updated successfully.', review: updatedReview });
     } catch (error) {
         return res.status(500).json({ message: 'Server error updating review.', error: error.message });
     }

@@ -10,14 +10,15 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Address = require('./Address');
 const Review = require('./Review');
+const ReviewImage = require('./ReviewImage');
 const AuditLog = require('./AuditLog');
 const Wishlist = require('./Wishlist');
 const Notification = require('./Notification');
-const Announcement = require('./announcement');
+const Announcement = require('./Announcement');
 
 const db = {
     User, Category, Product, ProductImage,
-    Variant, Order, OrderItem, Address, Review, AuditLog,
+    Variant, Order, OrderItem, Address, Review, ReviewImage, AuditLog,
     Wishlist, Notification, Announcement,
     sequelize, Sequelize
 };
@@ -53,6 +54,9 @@ db.Review.belongsTo(db.Product, { foreignKey: 'product_id' });
 
 db.User.hasMany(db.Review, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 db.Review.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.Review.hasMany(db.ReviewImage, { foreignKey: 'review_id', onDelete: 'CASCADE' });
+db.ReviewImage.belongsTo(db.Review, { foreignKey: 'review_id' });
 
 db.User.hasMany(db.Address, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 db.Address.belongsTo(db.User, { foreignKey: 'user_id' });

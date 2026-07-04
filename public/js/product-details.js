@@ -25,6 +25,41 @@ $(document).ready(function() {
     let currentProduct = null;
     let currentSizeUnit = localStorage.getItem('preferredSizeUnit') || 'US';
 
+    const FALLBACK_PRODUCT_IMAGE = 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
+
+    // Works for both locally-uploaded images (stored as relative paths like
+    // /uploads/xyz.jpg) and images referenced by full external URL.
+    function resolveImagePath(path, fallback) {
+        if (!path) return fallback || null;
+        return /^https?:\/\//i.test(path) ? path : (path.startsWith('/') ? path : `/${path}`);
+    }
+
+    // ===================== IMAGE GALLERY =====================
+    // Renders a thumbnail strip under the main image. Works the same whether
+    // an image came from an uploaded file (relative /uploads/... path) or
+    // was pasted in by the admin as a full external URL.
+    function renderThumbnails(imageSrcs, productName) {
+        const strip = $('#detail-thumbnails').empty();
+
+        if (imageSrcs.length <= 1) return; // nothing to browse between
+
+        imageSrcs.forEach((src, index) => {
+            strip.append(`
+                <div class="detail-thumb${index === 0 ? ' detail-thumb--active' : ''}" data-src="${src}"
+                     style="width:72px; height:72px; background:#111; border:2px solid ${index === 0 ? '#fff' : '#333'}; cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                    <img src="${src}" alt="${productName || 'Product'} view ${index + 1}" style="width:100%; height:100%; object-fit:contain; padding:6px;">
+                </div>
+            `);
+        });
+    }
+
+    $(document).on('click', '.detail-thumb', function () {
+        const newSrc = $(this).data('src');
+        $('#detail-image').attr('src', newSrc);
+        $('.detail-thumb').css('border-color', '#333').removeClass('detail-thumb--active');
+        $(this).css('border-color', '#fff').addClass('detail-thumb--active');
+    });
+
     function getSizeChart(gender) {
         return gender === 'women' ? WOMENS_SIZE_CHART : MENS_SIZE_CHART; // men/unisex/kids default to men's chart
     }
@@ -116,6 +151,32 @@ $(document).ready(function() {
         }
     }
 
+    // Preview thumbnails for newly selected review photos, before upload
+    $(document).on('change', '#review-images', function () {
+        const preview = $('#review-image-preview').empty();
+        Array.from(this.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = e => preview.append(`<img src="${e.target.result}" style="width:56px; height:56px; object-fit:cover; border:1px solid #333;">`);
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // Renders a row of clickable review photo thumbnails; clicking one opens
+    // the full-size image in a new tab.
+    function renderReviewImages(review) {
+        const images = review.ReviewImages || review.review_images || [];
+        if (images.length === 0) return '';
+
+        const thumbs = images.map(img => {
+            const src = resolveImagePath(img.image_path);
+            return `<a href="${src}" target="_blank" rel="noopener">
+                        <img src="${src}" alt="Review photo" style="width:64px; height:64px; object-fit:cover; border:1px solid #333;">
+                    </a>`;
+        }).join('');
+
+        return `<div class="review-images" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">${thumbs}</div>`;
+    }
+
     function loadReviews() {
         $.ajax({
             url: `/api/reviews/product/${productId}`,
@@ -136,9 +197,12 @@ $(document).ready(function() {
                     const date = new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                     const isOwner = currentUserId && review.user_id === currentUserId;
 
+                    const reviewImages = review.ReviewImages || review.review_images || [];
+                    const imagesJson = JSON.stringify(reviewImages.map(img => ({ id: img.id, image_path: img.image_path }))).replace(/"/g, '&quot;');
+
                     const ownerControls = isOwner ? `
                         <div class="review-controls" style="margin-top:8px;">
-                            <button class="review-edit-btn" data-id="${review.id}" data-rating="${review.rating}" data-comment="${review.comment ? review.comment.replace(/"/g, '&quot;') : ''}" style="background:none; border:none; color:#9cf; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; margin-right:16px; padding:0;">Edit</button>
+                            <button class="review-edit-btn" data-id="${review.id}" data-rating="${review.rating}" data-comment="${review.comment ? review.comment.replace(/"/g, '&quot;') : ''}" data-images="${imagesJson}" style="background:none; border:none; color:#9cf; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; margin-right:16px; padding:0;">Edit</button>
                             <button class="review-delete-btn" data-id="${review.id}" style="background:none; border:none; color:#f88; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; padding:0;">Delete</button>
                         </div>
                     ` : '';
@@ -152,6 +216,7 @@ $(document).ready(function() {
                             <div class="review-stars" style="color:#fb0; margin-bottom:8px; letter-spacing:2px; font-size:14px;">${stars}</div>
                             <div class="review-body">
                                 ${review.comment ? `<p style="font-size:14px; color:#ccc; line-height:1.6;">${review.comment}</p>` : ''}
+                                ${renderReviewImages(review)}
                             </div>
                             ${ownerControls}
                         </div>
@@ -185,6 +250,29 @@ $(document).ready(function() {
         });
     });
 
+    // Tracks which existing review-image IDs are marked for removal while an
+    // edit form is open. Reset every time a review is opened for editing.
+    let editImagesMarkedForRemoval = [];
+    let editReviewImages = [];
+
+    function renderEditExistingImages() {
+        const wrap = $('.edit-review-existing-images').empty();
+        if (editReviewImages.length === 0) {
+            wrap.append('<div style="color:#777; font-size:11px;">No photos attached.</div>');
+            return;
+        }
+        editReviewImages.forEach(img => {
+            const marked = editImagesMarkedForRemoval.includes(img.id);
+            const src = resolveImagePath(img.image_path);
+            wrap.append(`
+                <div class="edit-review-image-thumb" data-id="${img.id}" style="position:relative; cursor:pointer;">
+                    <img src="${src}" style="width:56px; height:56px; object-fit:cover; border:2px solid ${marked ? '#ff4444' : '#333'}; opacity:${marked ? '0.4' : '1'};">
+                    ${marked ? '<div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#ff4444; font-weight:700; font-size:10px;">REMOVE</div>' : ''}
+                </div>
+            `);
+        });
+    }
+
     // Edit own review — swap the card into an inline edit form
     $(document).on('click', '.review-edit-btn', function() {
         const $btn = $(this);
@@ -192,6 +280,9 @@ $(document).ready(function() {
         const currentRating = $btn.data('rating');
         const currentComment = $btn.data('comment') || '';
         const $item = $btn.closest('.review-item');
+
+        editReviewImages = $btn.data('images') || [];
+        editImagesMarkedForRemoval = [];
 
         $item.html(`
             <form class="review-edit-form" data-id="${reviewId}" style="padding:4px 0;">
@@ -209,10 +300,29 @@ $(document).ready(function() {
                     <label class="form-label" style="color:#fff; display:block; margin-bottom:8px; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Your Review</label>
                     <textarea class="edit-review-comment" rows="3" style="width:100%; background:#000; color:#fff; border:1px solid #333; padding:12px; font-size:13px; resize:vertical;">${currentComment}</textarea>
                 </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label class="form-label" style="color:#fff; display:block; margin-bottom:8px; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Photos</label>
+                    <div class="edit-review-existing-images" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;"></div>
+                    <div style="color:#777; font-size:11px; margin-bottom:10px;">Click a photo to mark it for removal.</div>
+                    <input type="file" class="edit-review-images" multiple accept="image/*" style="color:#fff; font-size:13px;">
+                </div>
                 <button type="submit" style="background:#fff; color:#000; border:none; padding:10px 22px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; cursor:pointer; margin-right:12px;">Save</button>
                 <button type="button" class="review-cancel-edit-btn" style="background:none; color:#888; border:none; font-size:12px; text-transform:uppercase; letter-spacing:1px; cursor:pointer;">Cancel</button>
             </form>
         `);
+
+        renderEditExistingImages();
+    });
+
+    // Toggle an existing review photo's removal state within the edit form
+    $(document).on('click', '.edit-review-image-thumb', function() {
+        const id = parseInt($(this).data('id'));
+        if (editImagesMarkedForRemoval.includes(id)) {
+            editImagesMarkedForRemoval = editImagesMarkedForRemoval.filter(x => x !== id);
+        } else {
+            editImagesMarkedForRemoval.push(id);
+        }
+        renderEditExistingImages();
     });
 
     // Cancel edit — just reload the list to discard changes
@@ -229,12 +339,21 @@ $(document).ready(function() {
         const comment = $form.find('.edit-review-comment').val().trim();
         const token = localStorage.getItem('token');
 
+        const formData = new FormData();
+        formData.append('rating', rating);
+        formData.append('comment', comment);
+        formData.append('remove_image_ids', JSON.stringify(editImagesMarkedForRemoval));
+
+        const files = $form.find('.edit-review-images')[0].files;
+        for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
+
         $.ajax({
             url: `/api/reviews/${reviewId}`,
             method: 'PUT',
-            contentType: 'application/json',
+            data: formData,
+            contentType: false,
+            processData: false,
             headers: { 'Authorization': 'Bearer ' + token },
-            data: JSON.stringify({ rating: parseInt(rating), comment }),
             success: function() {
                 loadReviews();
             },
@@ -275,15 +394,23 @@ $(document).ready(function() {
             return;
         }
 
+        const formData = new FormData();
+        formData.append('rating', rating);
+        formData.append('comment', comment);
+        const files = $('#review-images')[0].files;
+        for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
+
         $.ajax({
             url: `/api/reviews/product/${productId}`,
             method: 'POST',
-            contentType: 'application/json',
+            data: formData,
+            contentType: false,
+            processData: false,
             headers: { 'Authorization': 'Bearer ' + token },
-            data: JSON.stringify({ rating: parseInt(rating), comment }),
             success: function(response) {
                 alert(response.message || 'Review submitted!');
                 $('#reviewForm')[0].reset();
+                $('#review-image-preview').empty();
                 $('#review-form-container').hide();
                 loadReviews();
             },
@@ -322,14 +449,13 @@ $(document).ready(function() {
                 }
             }
 
-            let imageSrc = 'https://assets.adidas.com/images/h_2000,f_auto,q_auto,fl_lossy,c_fill,g_auto/3b06e3a894364ee89faf7808e7e8b3de_9366/ADIZERO_Dropset_Pro_Training_Shoes_White_KK1551_01_00_standard.jpg';
-            const images = product.ProductImages || product.product_images;
+            const images = product.ProductImages || product.product_images || [];
+            const imageSrcs = images.length > 0
+                ? images.map(img => resolveImagePath(img.image_path, FALLBACK_PRODUCT_IMAGE))
+                : [FALLBACK_PRODUCT_IMAGE];
 
-            if (images && images.length > 0) {
-                const raw = images[0].image_path;
-                imageSrc = /^https?:\/\//i.test(raw) ? raw : (raw.startsWith('/') ? raw : `/${raw}`);
-            }
-            $('#detail-image').attr('src', imageSrc).attr('alt', product.name);
+            $('#detail-image').attr('src', imageSrcs[0]).attr('alt', product.name);
+            renderThumbnails(imageSrcs, product.name);
 
             // 2. Map Related Inventory Variants — rendering now handled by renderVariantButtons()
             // so it can be re-run whenever the size unit toggle changes
