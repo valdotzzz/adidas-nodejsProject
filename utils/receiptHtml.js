@@ -1,33 +1,41 @@
 /**
- * orderStatusTemplate.js
- * Generates the HTML body for the order status update email.
- * Ported from IKEA Laravel order-status-updated.blade.php → adapted for Adidas AWA.
+ * receiptHtmlTemplate.js
+ * Builds the HTML for the PDF receipt — same visual design system as the
+ * status-update email (utils/orderStatus.js): same statusConfig colors,
+ * same badge, meta grid, message box, order summary, and totals layout.
  *
- * @param {object} order  - Sequelize Order instance with OrderItems[].Variant.Product
- * @returns {string}      - Full HTML string ready to pass to nodemailer
+ * Deliberately drops the email-only bits that don't make sense on a
+ * static PDF: the "View Order Details" / "Download PDF Receipt" buttons
+ * and the "reply to this email" line.
+ *
+ * Used only by utils/generateReceiptPdf.js, which renders this HTML to
+ * a PDF buffer with html-pdf-node.
+ *
+ * @param {object} order - Sequelize Order instance with:
+ *   order.User
+ *   order.OrderItems[].Variant.Product
+ * @returns {string} Full HTML string ready to hand to html-pdf-node
  */
-function orderStatusTemplate(order) {
-    const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const { buildReceiptLink } = require('./receiptLink');
-    const receiptLink = buildReceiptLink(order, BASE_URL);
-    const user  = order.User  || {};
+const statusConfig = require('./statusConfig');
+
+function receiptHtmlTemplate(order) {
+    const user  = order.User || {};
     const items = order.OrderItems || [];
 
     const orderId = String(order.id).padStart(6, '0');
     const status  = order.status || 'pending';
+    const cfg     = statusConfig[status] || statusConfig.pending;
 
-    // Shared with utils/generateReceiptPdf.js so the email and PDF never
-    // fall out of sync on colors/labels for a given status.
-    const statusConfig = require('./statusConfig');
-
-    const cfg = statusConfig[status] || statusConfig.pending;
-    const fmt = (n) => parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const fmt = (n) => parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
     const subtotal   = parseFloat(order.total_amount) || 0;
     const shipping   = subtotal >= 3000 ? 0 : 150;
     const grandTotal = subtotal + shipping;
 
     const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+    const orderDate = new Date(order.createdAt || Date.now()).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+    });
 
     /* ── Item rows ── */
     const itemRows = items.map(item => {
@@ -48,21 +56,18 @@ function orderStatusTemplate(order) {
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Order Update — Adidas AWA</title>
+    <title>Receipt — Order #${orderId} — Adidas AWA</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
+        html, body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            background: #f5f5f0;
+            background: #ffffff;
             color: #111;
-            padding: 32px 16px;
         }
-        .wrapper { max-width: 600px; margin: 0 auto; }
+        .wrapper { width: 100%; }
 
         .email-header {
             background: ${cfg.headerBg};
-            border-radius: 10px 10px 0 0;
             padding: 32px;
             text-align: center;
         }
@@ -93,7 +98,7 @@ function orderStatusTemplate(order) {
             flex-wrap: wrap;
             gap: 12px;
         }
-        .meta-item { text-align: center; }
+        .meta-item { text-align: center; flex: 1; }
         .meta-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #767676; }
         .meta-value { font-size: 15px; font-weight: 800; color: #111; margin-top: 3px; }
 
@@ -166,33 +171,12 @@ function orderStatusTemplate(order) {
             padding-top: 12px;
         }
 
-        .cta-wrap { text-align: center; margin: 28px 0; }
-        .cta-btn {
-            display: inline-block;
-            background: #111111;
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 15px;
-            padding: 14px 36px;
-            border-radius: 2px;
-            text-decoration: none;
-            letter-spacing: 0.5px;
-        }
-        .cta-btn.secondary {
-            background: #ffffff;
-            color: #111111;
-            border: 2px solid #111111;
-            margin-left: 12px;
-        }
-
         .email-footer {
             background: #111;
-            border-radius: 0 0 10px 10px;
             padding: 24px 32px;
             text-align: center;
         }
         .email-footer p { color: rgba(255,255,255,0.5); font-size: 12px; line-height: 1.7; }
-        .email-footer a { color: #ffffff; text-decoration: none; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -203,7 +187,7 @@ function orderStatusTemplate(order) {
         <div class="logo-box">ADIDAS</div>
         <span class="status-icon">${cfg.icon}</span>
         <h1>${cfg.title}</h1>
-        <p>Hi ${user.name || 'Customer'}, your order #${orderId} has been updated.</p>
+        <p>Hi ${user.name || 'Customer'}, here is the receipt for your order #${orderId}.</p>
     </div>
 
     <!-- Body -->
@@ -216,14 +200,18 @@ function orderStatusTemplate(order) {
                 <div class="meta-value">#${orderId}</div>
             </div>
             <div class="meta-item">
-                <div class="meta-label">New Status</div>
+                <div class="meta-label">Date</div>
+                <div class="meta-value">${orderDate}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Status</div>
                 <div class="meta-value">
                     <span class="status-badge">${statusLabel}</span>
                 </div>
             </div>
             <div class="meta-item">
                 <div class="meta-label">Payment</div>
-                <div class="meta-value">${(order.payment_status || 'Pending').charAt(0).toUpperCase() + (order.payment_status || 'pending').slice(1)}</div>
+                <div class="meta-value">${(order.payment_method || 'COD').toUpperCase()}</div>
             </div>
             <div class="meta-item">
                 <div class="meta-label">Total</div>
@@ -256,25 +244,13 @@ function orderStatusTemplate(order) {
             </div>
         </div>
 
-        <!-- CTA -->
-        <div class="cta-wrap">
-            <a href="${BASE_URL}/order-confirmation.html?id=${order.id}" class="cta-btn">View Order Details →</a>
-            <a href="${receiptLink}" class="cta-btn secondary" target="_blank">📄 Download PDF Receipt</a>
-        </div>
-
-        <p style="font-size:13px;color:#767676;text-align:center;line-height:1.6;">
-            Need help? Reply to this email and our support team will assist you.
-        </p>
-
     </div>
 
     <!-- Footer -->
     <div class="email-footer">
         <p>
             © ${new Date().getFullYear()} Adidas AWA. All rights reserved.<br>
-            <a href="${BASE_URL}/index.html">Home</a> &nbsp;·&nbsp;
-            <a href="${BASE_URL}/my-orders.html">My Orders</a> &nbsp;·&nbsp;
-            <a href="${BASE_URL}/shop.html">Shop</a>
+            Thank you for shopping with us!
         </p>
     </div>
 
@@ -283,4 +259,4 @@ function orderStatusTemplate(order) {
 </html>`;
 }
 
-module.exports = orderStatusTemplate;
+module.exports = receiptHtmlTemplate;
