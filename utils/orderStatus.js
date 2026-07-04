@@ -7,6 +7,9 @@
  * @returns {string}      - Full HTML string ready to pass to nodemailer
  */
 function orderStatusTemplate(order) {
+    const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const { buildReceiptLink } = require('./receiptLink');
+    const receiptLink = buildReceiptLink(order, BASE_URL);
     const user  = order.User  || {};
     const items = order.OrderItems || [];
 
@@ -234,6 +237,12 @@ function orderStatusTemplate(order) {
             text-decoration: none;
             letter-spacing: 0.5px;
         }
+        .cta-btn.secondary {
+            background: #ffffff;
+            color: #111111;
+            border: 2px solid #111111;
+            margin-left: 12px;
+        }
 
         .email-footer {
             background: #111;
@@ -308,7 +317,8 @@ function orderStatusTemplate(order) {
 
         <!-- CTA -->
         <div class="cta-wrap">
-            <a href="#" class="cta-btn">View Order Details →</a>
+            <a href="${BASE_URL}/order-confirmation.html?id=${order.id}" class="cta-btn">View Order Details →</a>
+            <a href="${receiptLink}" class="cta-btn secondary" target="_blank">📄 Download PDF Receipt</a>
         </div>
 
         <p style="font-size:13px;color:#767676;text-align:center;line-height:1.6;">
@@ -321,9 +331,9 @@ function orderStatusTemplate(order) {
     <div class="email-footer">
         <p>
             © ${new Date().getFullYear()} Adidas AWA. All rights reserved.<br>
-            <a href="#">Home</a> &nbsp;·&nbsp;
-            <a href="#">My Orders</a> &nbsp;·&nbsp;
-            <a href="#">Shop</a>
+            <a href="${BASE_URL}/index.html">Home</a> &nbsp;·&nbsp;
+            <a href="${BASE_URL}/my-orders.html">My Orders</a> &nbsp;·&nbsp;
+            <a href="${BASE_URL}/shop.html">Shop</a>
         </p>
     </div>
 

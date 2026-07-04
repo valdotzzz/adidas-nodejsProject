@@ -19,48 +19,11 @@ const transporter               = require('../config/mailer');
 // Change these three lines in sendOrderEmail.js:
 const orderConfirmationTemplate = require('./orderConfirmation');
 const orderStatusTemplate       = require('./orderStatus');
+const { generateReceiptPdf }    = require('./generateReceiptPdf');
 
 /* ── PDF helper ─────────────────────────────────────────── */
 async function generatePdfBuffer(order) {
-    const PDFDocument = require('pdfkit');
-    const { Readable } = require('stream');
-
-    return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ margin: 50 });
-        const chunks = [];
-
-        doc.on('data', chunk => chunks.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(chunks)));
-        doc.on('error', reject);
-
-        const orderId = String(order.id).padStart(6, '0');
-        const user = order.User || {};
-        const items = order.OrderItems || [];
-
-        doc.fontSize(20).font('Helvetica-Bold').text('ADIDAS', { align: 'center' });
-        doc.fontSize(12).font('Helvetica').text('Order Receipt', { align: 'center' });
-        doc.moveDown();
-        doc.text(`Order #${orderId}`, { align: 'left' });
-        doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
-        doc.text(`Customer: ${user.name} (${user.email})`);
-        doc.moveDown();
-
-        doc.font('Helvetica-Bold').text('Items:', { underline: true });
-        doc.font('Helvetica');
-        items.forEach(item => {
-            const variant = item.Variant || {};
-            const product = variant.Product || {};
-            doc.text(`  ${product.name || 'Item'} — ${variant.colorway || ''} ${variant.size_type || ''} ${variant.size_value || ''} x${item.quantity} @ ₱${parseFloat(item.price).toFixed(2)}`);
-        });
-
-        doc.moveDown();
-        doc.font('Helvetica-Bold').text(`Total: ₱${parseFloat(order.total_amount).toFixed(2)}`);
-        doc.text(`Payment: ${order.payment_method?.toUpperCase() || 'COD'}`);
-        doc.moveDown();
-        doc.font('Helvetica').fontSize(10).text('Thank you for your order!', { align: 'center' });
-
-        doc.end();
-    });
+    return generateReceiptPdf(order);
 }
 
 /* ── Shared mailer ──────────────────────────────────────── */
@@ -108,7 +71,7 @@ async function sendOrderStatusEmail(order) {
         order,
         subject   : `Your Order #${orderId} has been ${statusLabel} | Adidas AWA`,
         htmlBody  : orderStatusTemplate(order),
-        attachPdf : false,  // no PDF on status updates, matching IKEA pattern
+        attachPdf : true,   // attach the PDF receipt on status updates too
     });
 }
 
