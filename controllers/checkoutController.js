@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Variant, Product, Order, OrderItem, Address, User } = db;
+const { Variant, Product, ProductImage, Order, OrderItem, Address, User } = db;
 const { sendOrderConfirmationEmail } = require('../utils/sendOrderEmail');
 
 const DISCOUNT_RATE = 0.20; // RA 9994 / RA 10754 -- PWD & Senior Citizen
@@ -182,7 +182,10 @@ exports.getOrderById = async (req, res) => {
             where: { id: req.params.id, user_id: req.user.id },
             include: [
                 { model: Address },
-                { model: OrderItem, include: [{ model: Variant, include: [Product] }] }
+                { model: OrderItem, include: [
+                    { model: Variant },
+                    { model: Product, paranoid: false, include: [ProductImage] }
+                ] }
             ]
         });
 
@@ -203,7 +206,10 @@ exports.getMyOrders = async (req, res) => {
             where: { user_id: req.user.id },
             include: [
                 { model: Address },
-                { model: OrderItem, include: [{ model: Variant, include: [Product] }] }
+                { model: OrderItem, include: [
+                    { model: Variant },
+                    { model: Product, paranoid: false, include: [ProductImage] }
+                ] }
             ],
             order: [['createdAt', 'DESC']]
         });
