@@ -27,6 +27,7 @@
             <a href="#" class="nav-item" id="sidebar-orders-btn">🧾 Orders</a>
             <a href="#" class="nav-item" id="sidebar-users-btn">👤 Users</a>
             <a href="#" class="nav-item" id="sidebar-audit-btn">📋 Audit Logs</a>
+            <a href="#" class="nav-item" id="sidebar-stock-btn">📦 Stock Manager</a>
             <a href="#" class="nav-item" id="sidebar-announcements-btn">📣 Announcements</a>
 
             <div class="nav-section-title">Account</div>
@@ -281,7 +282,86 @@
             </div>
         </div>
 
+        <!-- ===================== STOCK MANAGER ===================== -->
+        <div id="stock-section" class="admin-view-panel" style="display:none;">
+            <div class="section-header" style="margin-bottom:20px;">
+                <div>
+                    <div class="section-label">Inventory Control</div>
+                    <h2 class="section-title">Stock Manager</h2>
+                </div>
+                <button id="openStockAdjustBtn" class="btn btn-primary" style="padding:10px 20px; font-size:12px;" disabled>
+                    Adjust Selected Stock
+                </button>
+            </div>
+
+            <!-- Product filter bar for stock table -->
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;">
+                <input type="text" id="stock-filter-product" placeholder="Filter by product name or style…"
+                    style="padding:10px 14px; background:#1a1a1a; border:1px solid #333; color:#fff; font-size:12px; width:240px;">
+                <input type="text" id="stock-filter-colorway" placeholder="Filter by colorway…"
+                    style="padding:10px 14px; background:#1a1a1a; border:1px solid #333; color:#fff; font-size:12px; width:180px;">
+                <select id="stock-filter-level" style="padding:10px 14px; background:#1a1a1a; border:1px solid #333; color:#fff; font-size:12px;">
+                    <option value="">All stock levels</option>
+                    <option value="out">Out of stock (0)</option>
+                    <option value="low">Low stock (1–5)</option>
+                    <option value="ok">In stock (&gt;5)</option>
+                </select>
+                <button id="stock-select-all" class="btn btn-dark" style="padding:10px 16px; font-size:12px;">Select All Visible</button>
+                <button id="stock-deselect-all" class="btn btn-dark" style="padding:10px 16px; font-size:12px;">Deselect All</button>
+                <span id="stock-selected-count" style="color:#aaa; font-size:12px; min-width:80px;"></span>
+            </div>
+
+            <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
+                <table id="stockTable" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"><input type="checkbox" id="stock-header-checkbox" title="Toggle all visible"></th>
+                            <th>Product</th>
+                            <th>Style</th>
+                            <th>Colorway</th>
+                            <th>Size</th>
+                            <th>Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
+
+    <!-- ===================== STOCK ADJUSTMENT MODAL ===================== -->
+    <div class="admin-modal-overlay" id="stockAdjustModal">
+        <div class="admin-modal-window" style="max-width:700px; max-height:90vh; display:flex; flex-direction:column;">
+            <div class="admin-modal-header" style="flex-shrink:0;">
+                <h3>Adjust Stock Levels</h3>
+                <button class="admin-modal-close" id="closeStockAdjustModalBtn">✕</button>
+            </div>
+
+            <!-- Step 1 — adjustment inputs -->
+            <div id="stockAdjustStep1" style="padding:24px; overflow-y:auto; flex:1;">
+                <p style="color:#aaa; font-size:12px; margin-bottom:20px;">
+                    Enter a positive number to add stock, negative to remove. Leave blank or 0 to skip a variant.
+                </p>
+                <div id="stockAdjustList"></div>
+            </div>
+
+            <!-- Step 2 — confirmation summary -->
+            <div id="stockAdjustStep2" style="padding:24px; overflow-y:auto; flex:1; display:none;">
+                <p style="color:#aaa; font-size:12px; margin-bottom:20px; font-weight:700; text-transform:uppercase; letter-spacing:1px;">
+                    Review Changes — Are you sure?
+                </p>
+                <div id="stockConfirmList"></div>
+            </div>
+
+            <div style="padding:16px 24px; border-top:1px solid #1a1a1a; display:flex; gap:12px; flex-shrink:0;">
+                <button id="stockAdjustNextBtn"   class="btn btn-primary" style="flex:1; padding:12px;">Review Changes</button>
+                <button id="stockAdjustBackBtn"   class="btn btn-dark"    style="flex:1; padding:12px; display:none;">← Edit</button>
+                <button id="stockAdjustAcceptBtn" class="btn btn-primary" style="flex:1; padding:12px; display:none;">Accept Changes</button>
+                <button id="stockAdjustCancelBtn" class="btn btn-dark"    style="flex:1; padding:12px;">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ===================== SHARED CRUD MODAL ===================== -->
     <div class="admin-modal-overlay" id="crudModal">

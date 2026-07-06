@@ -37,6 +37,7 @@ $(document).ready(function () {
     $('#sidebar-users-btn').on('click', function (e) { e.preventDefault(); showPanel('#users-section', '#sidebar-users-btn'); usersTable.ajax.reload(null, false); });
     $('#sidebar-audit-btn').on('click', function (e) { e.preventDefault(); showPanel('#audit-section', '#sidebar-audit-btn'); auditTable.ajax.reload(null, false); });
     $('#sidebar-announcements-btn').on('click', function (e) { e.preventDefault(); showPanel('#announcements-section', '#sidebar-announcements-btn'); announcementsTable.ajax.reload(null, false); });
+    $('#sidebar-stock-btn').on('click', function (e) { e.preventDefault(); showPanel('#stock-section', '#sidebar-stock-btn'); loadStockTable(); });
 
     /* =================================================================
        CONFIRM MODAL (replaces window.confirm)
@@ -1048,6 +1049,299 @@ $(document).ready(function () {
         currentProductImages = [];
         imagesMarkedForRemoval = [];
         clearErrors();
+    }
+
+    /* =================================================================
+       STOCK MANAGER
+    ================================================================= */
+
+    let stockData     = [];   // full variant list from API
+    let selectedVarIds = new Set();  // variant IDs user has checked
+
+    function loadStockTable() {
+        $('#stockTable tbody').html('<tr><td colspan="6" style="text-align:center; padding:32px; color:#555;">Loading…</td></tr>');
+        selectedVarIds.clear();
+        updateSelectedCount();
+
+        $.ajax({
+            url: '/api/admin/stock', method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (data) {
+                stockData = data;
+                renderStockRows(stockData);
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Failed to load stock data.', 'error'); }
+        });
+    }
+
+    function renderStockRows(rows) {
+        const tbody = $('#stockTable tbody').empty();
+
+        if (!rows.length) {
+            tbody.html('<tr><td colspan="6" style="text-align:center; padding:32px; color:#555;">No variants found.</td></tr>');
+            return;
+        }
+
+        rows.forEach(v => {
+            const stock     = v.stock_level;
+            const stockCol  = stock === 0  ? '#ff4444'
+                            : stock <= 5   ? '#ff9800'
+                            : '#4caf50';
+            const isChecked = selectedVarIds.has(v.id);
+            const colorway  = v.Colorway?.name  || '—';
+            const size      = v.ShoeSize?.label  || '—';
+            const product   = v.Product?.name    || '—';
+            const style     = v.Product?.style_code || '—';
+
+            tbody.append(`
+                <tr data-id="${v.id}">
+                    <td><input type="checkbox" class="stock-row-cb" data-id="${v.id}" ${isChecked ? 'checked' : ''}></td>
+                    <td>${product}</td>
+                    <td><span style="color:#aaa; font-size:11px;">${style}</span></td>
+                    <td>${colorway}</td>
+                    <td>${size}</td>
+                    <td><span style="color:${stockCol}; font-weight:700;">${stock}</span></td>
+                </tr>`);
+        });
+
+        // Re-init DataTables on this table if already initialised
+        if ($.fn.DataTable.isDataTable('#stockTable')) {
+            $('#stockTable').DataTable().destroy();
+        }
+        $('#stockTable').DataTable({
+            paging: true,
+            searching: false,   // we use our own filter bar
+            ordering: true,
+            columnDefs: [{ orderable: false, targets: 0 }],
+            responsive: true
+        });
+    }
+
+    // Filter bar — live filter on the cached data, no round-trip
+    function applyStockFilters() {
+        const prod  = $('#stock-filter-product').val().toLowerCase();
+        const cw    = $('#stock-filter-colorway').val().toLowerCase();
+        const level = $('#stock-filter-level').val();
+
+        const filtered = stockData.filter(v => {
+            const name  = (v.Product?.name       || '').toLowerCase();
+            const style = (v.Product?.style_code  || '').toLowerCase();
+            const color = (v.Colorway?.name        || '').toLowerCase();
+
+            const prodMatch  = !prod  || name.includes(prod) || style.includes(prod);
+            const cwMatch    = !cw    || color.includes(cw);
+            const levelMatch = level === ''    ? true
+                             : level === 'out' ? v.stock_level === 0
+                             : level === 'low' ? (v.stock_level > 0 && v.stock_level <= 5)
+                             : v.stock_level > 5;
+
+            return prodMatch && cwMatch && levelMatch;
+        });
+
+        renderStockRows(filtered);
+    }
+
+    $('#stock-filter-product, #stock-filter-colorway').on('input', applyStockFilters);
+    $('#stock-filter-level').on('change', applyStockFilters);
+
+    // Checkbox selection
+    $(document).on('change', '.stock-row-cb', function () {
+        const id = parseInt($(this).data('id'));
+        if ($(this).is(':checked')) selectedVarIds.add(id);
+        else                         selectedVarIds.delete(id);
+        updateSelectedCount();
+    });
+
+    $('#stock-header-checkbox').on('change', function () {
+        const check = $(this).is(':checked');
+        $('.stock-row-cb').each(function () {
+            $(this).prop('checked', check);
+            const id = parseInt($(this).data('id'));
+            if (check) selectedVarIds.add(id);
+            else        selectedVarIds.delete(id);
+        });
+        updateSelectedCount();
+    });
+
+    $('#stock-select-all').on('click', function () {
+        $('.stock-row-cb').prop('checked', true).each(function () {
+            selectedVarIds.add(parseInt($(this).data('id')));
+        });
+        updateSelectedCount();
+    });
+
+    $('#stock-deselect-all').on('click', function () {
+        $('.stock-row-cb').prop('checked', false);
+        selectedVarIds.clear();
+        updateSelectedCount();
+    });
+
+    function updateSelectedCount() {
+        const n = selectedVarIds.size;
+        $('#stock-selected-count').text(n > 0 ? `${n} selected` : '');
+        $('#openStockAdjustBtn').prop('disabled', n === 0);
+    }
+
+    // Open the adjustment modal
+    $('#openStockAdjustBtn').on('click', function () {
+        if (!selectedVarIds.size) return;
+
+        const selected = stockData.filter(v => selectedVarIds.has(v.id));
+        const list     = $('#stockAdjustList').empty();
+
+        selected.forEach(v => {
+            const colorway = v.Colorway?.name  || '—';
+            const size     = v.ShoeSize?.label  || '—';
+            const product  = v.Product?.name    || '—';
+            const style    = v.Product?.style_code || '';
+
+            list.append(`
+                <div class="stock-adjust-row" data-id="${v.id}" data-current="${v.stock_level}"
+                     style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center;
+                            padding:14px 0; border-bottom:1px solid #1a1a1a;">
+                    <div>
+                        <div style="font-weight:700; font-size:13px;">${product}</div>
+                        <div style="color:#aaa; font-size:11px; margin-top:2px;">
+                            ${style} · ${colorway} · Size ${size}
+                        </div>
+                        <div style="margin-top:4px; font-size:12px;">
+                            Current stock: <span class="stock-current-badge" style="color:#fff; font-weight:700;">${v.stock_level}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="stock-decrement btn btn-dark"
+                                style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">−</button>
+                        <input type="number" class="stock-delta-input"
+                               value="0"
+                               style="width:72px; text-align:center; padding:8px; background:#0a0a0a;
+                                      border:1px solid #333; color:#fff; font-size:14px; font-weight:700;">
+                        <button class="stock-increment btn btn-dark"
+                                style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">+</button>
+                        <div style="min-width:60px; text-align:center; font-size:13px; color:#aaa;">
+                            → <span class="stock-preview-val" style="font-weight:700; color:#fff;">${v.stock_level}</span>
+                        </div>
+                    </div>
+                </div>`);
+        });
+
+        // Reset to step 1
+        $('#stockAdjustStep1').show();
+        $('#stockAdjustStep2').hide();
+        $('#stockAdjustNextBtn').show();
+        $('#stockAdjustBackBtn').hide();
+        $('#stockAdjustAcceptBtn').hide();
+
+        $('#stockAdjustModal').css('display', 'flex');
+    });
+
+    // +/− stepper buttons inside the modal
+    $(document).on('click', '.stock-increment', function () {
+        const inp = $(this).siblings('.stock-delta-input');
+        inp.val(parseInt(inp.val() || 0) + 1).trigger('input');
+    });
+    $(document).on('click', '.stock-decrement', function () {
+        const inp = $(this).siblings('.stock-delta-input');
+        inp.val(parseInt(inp.val() || 0) - 1).trigger('input');
+    });
+
+    // Live preview of resulting stock
+    $(document).on('input', '.stock-delta-input', function () {
+        const row     = $(this).closest('.stock-adjust-row');
+        const current = parseInt(row.data('current'));
+        const delta   = parseInt($(this).val()) || 0;
+        const after   = Math.max(0, current + delta);
+
+        row.find('.stock-preview-val').text(after).css('color',
+            after === 0 ? '#ff4444' : after <= 5 ? '#ff9800' : '#4caf50'
+        );
+    });
+
+    // "Review Changes" → build the confirmation summary
+    $('#stockAdjustNextBtn').on('click', function () {
+        const adjustments = buildAdjustments();
+
+        if (!adjustments.length) {
+            showToast('No changes entered — adjust at least one delta value.', 'error');
+            return;
+        }
+
+        // Build readable summary
+        const confirmList = $('#stockConfirmList').empty();
+        adjustments.forEach(a => {
+            const v       = stockData.find(x => x.id === a.variant_id);
+            const product = v?.Product?.name  || `Variant #${a.variant_id}`;
+            const style   = v?.Product?.style_code || '';
+            const color   = v?.Colorway?.name  || '';
+            const size    = v?.ShoeSize?.label  || '';
+            const current = parseInt($(`[data-id="${a.variant_id}"]`).data('current'));
+            const after   = Math.max(0, current + a.delta);
+            const arrow   = a.delta > 0 ? `<span style="color:#4caf50">+${a.delta}</span>`
+                                        : `<span style="color:#ff4444">${a.delta}</span>`;
+
+            confirmList.append(`
+                <div style="padding:12px 0; border-bottom:1px solid #1a1a1a; font-size:13px;">
+                    <span style="font-weight:700;">${product}</span>
+                    <span style="color:#666; font-size:11px; margin-left:6px;">${style}</span><br>
+                    <span style="color:#aaa;">${color} · Size ${size}</span><br>
+                    <span style="margin-top:4px; display:inline-block;">
+                        Stock: <strong>${current}</strong> ${arrow} → <strong>${after}</strong>
+                    </span>
+                </div>`);
+        });
+
+        $('#stockAdjustStep1').hide();
+        $('#stockAdjustStep2').show();
+        $('#stockAdjustNextBtn').hide();
+        $('#stockAdjustBackBtn').show();
+        $('#stockAdjustAcceptBtn').show();
+    });
+
+    // "← Edit" — go back to step 1
+    $('#stockAdjustBackBtn').on('click', function () {
+        $('#stockAdjustStep2').hide();
+        $('#stockAdjustStep1').show();
+        $('#stockAdjustNextBtn').show();
+        $('#stockAdjustBackBtn').hide();
+        $('#stockAdjustAcceptBtn').hide();
+    });
+
+    // "Accept Changes" — fire the API
+    $('#stockAdjustAcceptBtn').on('click', function () {
+        const adjustments = buildAdjustments();
+
+        $.ajax({
+            url: '/api/admin/stock', method: 'PATCH',
+            contentType: 'application/json',
+            data: JSON.stringify({ adjustments }),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (res) {
+                $('#stockAdjustModal').hide();
+                showToast(`${res.results.length} variant(s) updated.`, 'success');
+                selectedVarIds.clear();
+                updateSelectedCount();
+                loadStockTable();
+            },
+            error: function (xhr) {
+                showToast(xhr.responseJSON?.message || 'Stock update failed.', 'error');
+            }
+        });
+    });
+
+    // Close modal
+    $('#closeStockAdjustModalBtn, #stockAdjustCancelBtn').on('click', function () {
+        $('#stockAdjustModal').hide();
+    });
+
+    // Helper: collect non-zero delta entries from the modal form
+    function buildAdjustments() {
+        const adjustments = [];
+        $('.stock-adjust-row').each(function () {
+            const delta = parseInt($(this).find('.stock-delta-input').val()) || 0;
+            if (delta !== 0) {
+                adjustments.push({ variant_id: parseInt($(this).data('id')), delta });
+            }
+        });
+        return adjustments;
     }
 
     function handleAuthFailure(xhr) {

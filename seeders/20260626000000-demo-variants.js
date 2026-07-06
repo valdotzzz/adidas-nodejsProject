@@ -1,107 +1,70 @@
 'use strict';
 
 module.exports = {
-  async up (queryInterface, Sequelize) {
-    // 1. Look up all products so we can reference their real IDs by style_code
-    //    (safer than hardcoding IDs, since they can shift between environments)
-    const products = await queryInterface.sequelize.query(
+  async up(queryInterface, Sequelize) {
+    // Resolve reference tables so we use real PKs everywhere
+    const products  = await queryInterface.sequelize.query(
       `SELECT id, style_code FROM products;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
+    const colorways = await queryInterface.sequelize.query(
+      `SELECT id, name FROM colorways;`,
+      { type: Sequelize.QueryTypes.SELECT }
+    );
+    const sizes = await queryInterface.sequelize.query(
+      `SELECT id, label FROM shoe_sizes ORDER BY sort_order;`,
+      { type: Sequelize.QueryTypes.SELECT }
+    );
 
-    // Helper: find a product's real DB id from its style_code
-    const idFor = (styleCode) => {
-      const match = products.find(p => p.style_code === styleCode);
-      if (!match) {
-        throw new Error(`Seeder error: no product found with style_code ${styleCode}`);
-      }
-      return match.id;
-    };
+    const pidFor  = sc  => { const m = products.find(p => p.style_code === sc); if (!m) throw new Error(`No product: ${sc}`); return m.id; };
+    const cwidFor = nm  => { const m = colorways.find(c => c.name === nm);      if (!m) throw new Error(`No colorway: ${nm}`); return m.id; };
+    const sidFor  = lbl => { const m = sizes.find(s => String(s.label) === String(lbl)); if (!m) throw new Error(`No size: ${lbl}`); return m.id; };
 
-    // Standard US adult shoe size run, used for most products
-    const standardSizes = [8, 8.5, 9, 9.5, 10, 10.5, 11];
-
-    // Smaller size run for kids' shoes
-    const kidsSizes = [3, 3.5, 4, 4.5, 5, 5.5, 6];
+    const now = new Date();
+    const adultRun = ['8', '8.5', '9', '9.5', '10', '10.5', '11'];
+    const youthRun = ['3.5Y', '4Y', '4.5Y', '5Y', '5.5Y', '6Y', '6.5Y'];
+    const stockPat = i => [10, 15, 20, 5, 0, 12, 8][i % 7];
 
     const variants = [];
+    const addRun = (sc, cw, sizes) => sizes.forEach((lbl, i) => variants.push({
+      product_id: pidFor(sc), colorway_id: cwidFor(cw), size_id: sidFor(lbl),
+      stock_level: stockPat(i), image_id: null, createdAt: now, updatedAt: now
+    }));
 
-    // Helper: push a full size run for one product + colorway combo
-    function addSizeRun(styleCode, colorway, sizes, stockFn) {
-      sizes.forEach((size, i) => {
-        variants.push({
-          product_id: idFor(styleCode),
-          colorway: colorway,
-          size_type: 'US',
-          size_value: size,
-          stock_level: stockFn(i),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-      });
-    }
-
-    // A simple varied stock pattern so some sizes show low-stock / out-of-stock states
-    const normalStock = (i) => [10, 15, 20, 5, 0, 12, 8][i % 7];
-
-    // ==========================================
     // RUNNING
-    // ==========================================
-    addSizeRun('HQ6339', 'Core Black / Solar Lemon', standardSizes, normalStock);
-    addSizeRun('HQ6339', 'Cloud White / Grey', standardSizes, normalStock);
+    addRun('HQ6339', 'Core Black / Solar Lemon',             adultRun);
+    addRun('HQ6339', 'Cloud White / Grey',                   adultRun);
+    addRun('IF2364', 'Core Black',                           adultRun);
+    addRun('GX9777', 'Core Black / Solar Lemon / Solar Purple', adultRun);
+    addRun('GX9777', 'Cloud White / Core Black',             adultRun);
+    addRun('IG8320', 'Pink / White',                         adultRun);
+    addRun('F36308', 'Core Black',                           adultRun);
+    addRun('IF7881', 'Blue / White',                         youthRun);
+    addRun('ID7335', 'Grey / Pink',                          adultRun);
 
-    addSizeRun('IF2364', 'Core Black', standardSizes, normalStock);
-
-    addSizeRun('GX9777', 'Core Black / Solar Lemon / Solar Purple', standardSizes, normalStock);
-    addSizeRun('GX9777', 'Cloud White / Core Black', standardSizes, normalStock);
-
-    addSizeRun('IG8320', 'Pink / White', standardSizes, normalStock);
-
-    addSizeRun('F36308', 'Core Black', standardSizes, normalStock);
-
-    addSizeRun('IF7881', 'Blue / White', kidsSizes, normalStock);
-
-    addSizeRun('ID7335', 'Grey / Pink', standardSizes, normalStock);
-
-    // ==========================================
     // LIFESTYLE
-    // ==========================================
-    addSizeRun('B75807', 'Core Black / Cloud White', standardSizes, normalStock);
+    addRun('B75807', 'Core Black / Cloud White',             adultRun);
+    addRun('HQ6893', 'Cloud White / Gold Metallic',          adultRun);
+    addRun('HQ6893', 'Core Black',                           adultRun);
+    addRun('EG4958', 'Cloud White / Core Black',             adultRun);
+    addRun('FY7756', 'Cloud White / Core Black / Blue',      adultRun);
+    addRun('HP4316', 'Core Black / Carbon',                  adultRun);
+    addRun('HQ8708', 'Core Black / Off White',               adultRun);
+    addRun('HP2201', 'Cloud White / Green',                  adultRun);
 
-    addSizeRun('HQ6893', 'Cloud White / Gold Metallic', standardSizes, normalStock);
-    addSizeRun('HQ6893', 'Core Black', standardSizes, normalStock);
-
-    addSizeRun('EG4958', 'Cloud White / Core Black', standardSizes, normalStock);
-
-    addSizeRun('FY7756', 'Cloud White / Core Black / Blue', standardSizes, normalStock);
-
-    addSizeRun('HP4316', 'Core Black / Carbon', standardSizes, normalStock);
-
-    addSizeRun('HQ8708', 'Core Black / Off White', standardSizes, normalStock);
-
-    addSizeRun('HP2201', 'Cloud White / Green', standardSizes, normalStock);
-
-    // ==========================================
     // BASKETBALL
-    // ==========================================
-    addSizeRun('HQ1419', 'Core Black / Solar Red', standardSizes, normalStock);
-
-    addSizeRun('ID5660', 'Cloud White / Core Black', standardSizes, normalStock);
-
-    addSizeRun('IE8325', 'Core Black / Gold', standardSizes, normalStock);
-
-    addSizeRun('IF5600', 'Navy / Orange', standardSizes, normalStock);
-
-    addSizeRun('G58623', 'Core Black / Pink', standardSizes, normalStock);
-
-    addSizeRun('GZ2341', 'Grey / Core Black', standardSizes, normalStock);
-
-    addSizeRun('GW7235', 'Core Black / Blue', kidsSizes, normalStock);
+    addRun('HQ1419', 'Core Black / Solar Red',               adultRun);
+    addRun('ID5660', 'Cloud White / Core Black',             adultRun);
+    addRun('IE8325', 'Core Black / Gold',                    adultRun);
+    addRun('IF5600', 'Navy / Orange',                        adultRun);
+    addRun('G58623', 'Core Black / Pink',                    adultRun);
+    addRun('GZ2341', 'Grey / Core Black',                    adultRun);
+    addRun('GW7235', 'Core Black / Blue',                    youthRun);
 
     return queryInterface.bulkInsert('variants', variants, {});
   },
 
-  async down (queryInterface, Sequelize) {
+  async down(queryInterface) {
     return queryInterface.bulkDelete('variants', null, {});
   }
 };

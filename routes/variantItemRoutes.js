@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const variantController = require('../controllers/variantController');
+const c = require('../controllers/variantController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const auditLog = require('../middlewares/auditLogger');
 
+const adminStaff = [protect, authorize('admin', 'staff')];
+
 // Mounted at /api/variants
-router.put('/:id', protect, authorize('admin', 'staff'), auditLog('admin', 'Updated product variant'), variantController.updateVariant);
-router.delete('/:id', protect, authorize('admin', 'staff'), auditLog('admin', 'Deleted product variant'), variantController.deleteVariant);
+router.put('/:id',    ...adminStaff, auditLog('admin', 'Updated product variant'), c.updateVariant);
+router.delete('/:id', ...adminStaff, auditLog('admin', 'Deleted product variant'), c.deleteVariant);
 
 module.exports = router;
