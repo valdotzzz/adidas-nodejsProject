@@ -3,10 +3,11 @@ const router = express.Router();
 const dashboardController = require('../../controllers/admin/dashboardController');
 const { protect, authorize } = require('../../middlewares/authMiddleware');
 
-router.get('/dashboard', protect, authorize('admin'), dashboardController.getDashboard);
-router.get('/dashboard', protect, authorize('admin', 'staff'), dashboardController.getDashboard);
-router.get('/dashboard/sales-chart', protect, authorize('admin', 'staff'), dashboardController.getSalesChart);
-router.get('/dashboard/category-chart', protect, authorize('admin', 'staff'), dashboardController.getCategoryChart);
-router.get('/dashboard/audit-logs', protect, authorize('admin', 'staff'), dashboardController.getAuditLogs);
+const adminStaff = [protect, authorize('admin', 'staff')];
+
+router.get('/dashboard', ...adminStaff, dashboardController.getDashboard);
+router.get('/dashboard/sales-chart', ...adminStaff, dashboardController.getSalesChart);
+router.get('/dashboard/category-chart', ...adminStaff, dashboardController.getCategoryChart);
+router.get('/dashboard/audit-logs', ...adminStaff, dashboardController.getAuditLogs);
 
 module.exports = router;

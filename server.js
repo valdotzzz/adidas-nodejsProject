@@ -21,6 +21,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
 
+// REQUIRE MISSING LOOKUP ROUTES
+const colorwayRoutes = require('./routes/colorwayRoutes');
+const shoeSizeRoutes = require('./routes/shoeSizeRoutes');
 
 const app = express();
 app.use(express.json());
@@ -31,8 +34,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminDashboardRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
-app.use('/api/admin/users',  adminUserRoutes);
-app.use('/api/admin/stock',  adminStockRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/stock', adminStockRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/profile', profileRoutes);
@@ -48,15 +51,16 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/uploads', express.static('public/uploads'));
 
+// MOUNT MISSING ROUTE INTERFACES
+app.use('/api/colorways', colorwayRoutes);
+app.use('/api/shoe-sizes', shoeSizeRoutes);
 
-// ...
 app.get('/', (req, res) => {
     res.send('<h1>Adidas E-Commerce API Backend is running!</h1>');
 });
 
 const PORT = process.env.PORT || 3000;
 
-// Sync database schema using the centralized model definitions
 db.sequelize.sync({ alter: true })
     .then(() => {
         console.log('Database connected and relational models synced successfully.');
