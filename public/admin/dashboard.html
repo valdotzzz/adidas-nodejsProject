@@ -77,17 +77,37 @@
 
             <!-- Charts row -->
             <div style="display:grid; grid-template-columns:2fr 1fr; gap:24px; margin-bottom:24px;">
+                <!-- Bar + Line combo: revenue bars, order-count line, dual Y axes -->
                 <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Daily Revenue (Bar)</div>
-                    <canvas id="barChart" height="120"></canvas>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Revenue &amp; Orders</div>
+                        <div style="display:flex; gap:16px; font-size:11px; color:#aaa;">
+                            <span><span style="display:inline-block; width:10px; height:10px; background:#fff; margin-right:4px;"></span>Revenue (₱)</span>
+                            <span><span style="display:inline-block; width:10px; height:10px; background:#ff9800; margin-right:4px; border-radius:50%;"></span>Orders</span>
+                        </div>
+                    </div>
+                    <canvas id="barChart" height="140"></canvas>
                 </div>
-                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Revenue by Category (Pie)</div>
-                    <canvas id="pieChart" height="200"></canvas>
+
+                <!-- Doughnut: revenue share by category with centre total -->
+                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px; display:flex; flex-direction:column;">
+                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Revenue by Category</div>
+                    <div style="position:relative; flex:1; display:flex; align-items:center; justify-content:center;">
+                        <canvas id="pieChart"></canvas>
+                        <div id="pieChartTotal" style="position:absolute; text-align:center; pointer-events:none;">
+                            <div style="font-size:10px; color:#777; text-transform:uppercase; letter-spacing:1px;">Total</div>
+                            <div id="pieChartTotalValue" style="font-size:16px; font-weight:800; color:#fff;">—</div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Smooth area line chart: rolling revenue trend with reference lines -->
             <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Orders Trend (Line)</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Revenue Trend</div>
+                    <div id="lineTrendStats" style="font-size:11px; color:#777; display:flex; gap:24px;"></div>
+                </div>
                 <canvas id="lineChart" height="80"></canvas>
             </div>
         </div>

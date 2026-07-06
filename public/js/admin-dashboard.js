@@ -130,7 +130,19 @@ $(document).ready(function () {
                         labels,
                         datasets: [{ label: 'Daily Revenue (₱)', data: revenues, backgroundColor: 'rgba(255,255,255,0.7)' }]
                     },
-                    options: { plugins: { legend: { labels: { color: '#ccc' } } }, scales: { x: { ticks: { color: '#aaa' } }, y: { ticks: { color: '#aaa' } } } }
+                    options: { 
+                        plugins: { legend: { labels: { color: '#ccc' } } }, 
+                        scales: { 
+                            x: { 
+                                ticks: { color: '#aaa' }, 
+                                grid: { color: '#2d2d2d' } // Adds a dark gray grid line for X axis
+                            }, 
+                            y: { 
+                                ticks: { color: '#aaa' }, 
+                                grid: { color: '#2d2d2d' } // Adds a dark gray grid line for Y axis
+                            } 
+                        } 
+                    }
                 });
 
                 if (lineChart) lineChart.destroy();
@@ -140,7 +152,19 @@ $(document).ready(function () {
                         labels,
                         datasets: [{ label: 'Orders', data: orders, borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.1)', tension: 0.3, fill: true }]
                     },
-                    options: { plugins: { legend: { labels: { color: '#ccc' } } }, scales: { x: { ticks: { color: '#aaa' } }, y: { ticks: { color: '#aaa' } } } }
+                    options: { 
+                        plugins: { legend: { labels: { color: '#ccc' } } }, 
+                        scales: { 
+                            x: { 
+                                ticks: { color: '#aaa' }, 
+                                grid: { color: '#2d2d2d' } // Adds a dark gray grid line for X axis
+                            }, 
+                            y: { 
+                                ticks: { color: '#aaa' }, 
+                                grid: { color: '#2d2d2d' } // Adds a dark gray grid line for Y axis
+                            } 
+                        } 
+                    }
                 });
             }
         });
