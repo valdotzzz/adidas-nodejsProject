@@ -21,6 +21,9 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
+const adminSeeder = require('./seeders/admin-seeder');
+const colorSeeder = require('./seeders/20260622050000-colorways');
+const sizeSeeder = require('/seeders/20250622000000-shoe-sizes.js');
 
 // REQUIRE MISSING LOOKUP ROUTES
 const colorwayRoutes = require('./routes/colorwayRoutes');
@@ -64,11 +67,13 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 db.sequelize.sync({ alter: true })
-    .then(() => {
-        console.log('Database connected and relational models synced successfully.');
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
+    .then(async () => {
+        await adminSeeder.up(); 
+        await sizeSeeder.up();
+        await colorSeeder.up();
+
+        console.log('Database sync complete.');
+        app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     })
     .catch(err => {
         console.error('Database connection synchronization failure:', err);

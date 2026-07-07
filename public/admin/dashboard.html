@@ -24,6 +24,7 @@
             <div class="nav-section-title">Overview</div>
             <a href="#" class="nav-item active" id="sidebar-dashboard-btn">📊 Dashboard</a>
             <a href="#" id="sidebar-products-btn" class="nav-item">👟 Product Management</a>
+            <a href="#" class="nav-item" id="sidebar-orders-btn">📦 Orders</a>
             <a href="#" class="nav-item" id="sidebar-users-btn">👤 Users</a>
             <a href="#" class="nav-item" id="sidebar-audit-btn">📋 Audit Logs</a>
             <a href="#" class="nav-item" id="sidebar-announcements-btn">📣 Announcements</a>
@@ -710,6 +711,17 @@
             <div id="userAddressesModalBody" style="padding:0 24px 24px;"></div>
         </div>
     </div>    
+
+    <div class="admin-modal-overlay" id="orderItemsModal" style="display:none;">
+        <div class="admin-modal-window" style="max-width:700px; max-height:90vh; display:flex; flex-direction:column;">
+            <div class="admin-modal-header" style="flex-shrink:0;">
+                <h3 id="orderItemsModalTitle">Ordered Items Ledger</h3>
+                <button class="admin-modal-close" id="closeOrderItemsModalBtn">✕</button>
+            </div>
+            <div id="orderItemsModalBody" style="padding:24px; overflow-y:auto; flex:1;">
+                </div>
+        </div>
+    </div>
 
     <!-- ===================== CONFIRM MODAL (replaces alert/confirm) ===================== -->
     <div class="admin-modal-overlay" id="confirmModal">

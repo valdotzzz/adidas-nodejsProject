@@ -532,7 +532,44 @@ $(document).ready(function () {
         });
     });
 
-    $('#closeOrderItemsModalBtn').on('click', function () { $('#orderItemsModal').hide(); });
+    // Close Order Items Modal Event Handler
+    $('#closeOrderItemsModalBtn, #orderItemsModal').on('click', function(e) {
+        if (e.target === this) {
+            $('#orderItemsModal').fadeOut(200);
+        }
+    });
+
+    // Example implementation inside your orders DataTables column rendering / click function
+    function viewOrderItems(orderId, itemsArray) {
+        $('#orderItemsModal').fadeIn(200);
+        
+        let htmlContent = `
+            <table style="width:100%; border-collapse: collapse; font-size:12px; color:#fff; text-align:left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #222; color:#888; text-transform:uppercase; letter-spacing:1px;">
+                        <th style="padding:12px 8px;">Product Description</th>
+                        <th style="padding:12px 8px;">Size / Var</th>
+                        <th style="padding:12px 8px; text-align:right;">Quantity</th>
+                        <th style="padding:12px 8px; text-align:right;">Unit Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        itemsArray.forEach(item => {
+            htmlContent += `
+                <tr style="border-bottom: 1px solid #111;">
+                    <td style="padding:12px 8px; font-weight:700;">${item.name} <br><span style="color:#666; font-size:11px;">${item.style_code}</span></td>
+                    <td style="padding:12px 8px; color:#aaa;">US ${item.size} (${item.colorway})</td>
+                    <td style="padding:12px 8px; text-align:right;">${item.quantity}</td>
+                    <td style="padding:12px 8px; text-align:right; color:#4caf50;">₱${parseFloat(item.price).toLocaleString()}</td>
+                </tr>
+            `;
+        });
+
+        htmlContent += `</tbody></table>`;
+        $('#orderItemsModalBody').html(htmlContent);
+    }
 
     $(document).on('change', '.order-status-select', function () {
         const select = $(this);
@@ -786,19 +823,21 @@ $(document).ready(function () {
        CATEGORY DROPDOWN (with inline create)
     ================================================================= */
     function preloadCategoryDropdown() {
-        $.ajax({
-            url: '/api/categories', method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function (categories) {
-                const select = $('#prod_category_id');
-                const currentVal = select.val();
-                select.empty();
-                categories.forEach(c => select.append(`<option value="${c.id}">${c.name}</option>`));
-                select.append(`<option value="__new__">+ Add New Category</option>`);
-                if (currentVal) select.val(currentVal);
-            }
-        });
-    }
+    $.ajax({
+        url: '/api/categories', 
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        success: function (categories) {
+            const select = $('#prod_category_id');
+            const currentVal = select.val();
+            select.empty();
+            select.append(`<option value="">Select a category</option>`);
+            categories.forEach(c => select.append(`<option value="${c.id}">${c.name}</option>`));
+            select.append(`<option value="__new__">+ Add New Category</option>`);
+            if (currentVal) select.val(currentVal);
+        }
+    });
+}
 
     $(document).on('change', '#prod_category_id', function () {
         if ($(this).val() !== '__new__') return;
@@ -1427,6 +1466,9 @@ $(document).ready(function () {
         currentProductImages = [];
         imagesMarkedForRemoval = [];
         pendingImageFiles = [];
+        $('#product_id_field').val(''); // Clear the ID so it doesn't think we are editing
+        $('#variants-container').empty(); // Clear dynamic variant content
+        $('#prod_image_preview').empty(); // Clear image previews
         clearErrors();
     }
 
@@ -1876,6 +1918,8 @@ $(document).ready(function () {
 
         $preview.text(`Derived Sale Price: ₱${Math.max(0, result).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
     }
+
+    
 
     // Add some CSS for toast and field errors inline
     $('<style>.field-error{color:#ff4444;font-size:11px;margin-top:4px;min-height:14px;} .audit-filter-btn.active{background:#fff;color:#000;}</style>').appendTo('head');
