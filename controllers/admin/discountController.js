@@ -111,3 +111,33 @@ exports.getRedemptions = async (req, res) => {
         return res.status(500).json({ message: 'Error fetching redemptions.', error: err.message });
     }
 };
+
+exports.validateCode = async (req, res) => {
+    try {
+        const codeInput = req.params.code;
+        const dc = await DiscountCode.findOne({ 
+            where: { code: codeInput.toUpperCase(), active: true } 
+        });
+
+        if (!dc) {
+            return res.status(404).json({ message: 'This code does not exist or is disabled.' });
+        }
+
+        if (dc.expires_at && new Date(dc.expires_at) < new Date()) {
+            return res.status(400).json({ message: 'This promo code has expired.' });
+        }
+
+        if (dc.max_uses !== null && dc.times_used >= dc.max_uses) {
+            return res.status(400).json({ message: 'This promo code usage limit has been reached.' });
+        }
+
+        // Code is valid; return only what the frontend needs to calculate the total
+        return res.json({
+            code: dc.code,
+            percent_off: dc.percent_off
+        });
+
+    } catch (err) {
+        return res.status(500).json({ message: 'Error validating code.', error: err.message });
+    }
+};

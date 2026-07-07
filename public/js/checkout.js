@@ -1,5 +1,8 @@
 $(document).ready(function() {
     const token = localStorage.getItem('token');
+    
+    let appliedPromoCode = null;
+    let appliedPromoPercent = 0;
 
     if (!token) {
         window.location.href = 'login.html';
@@ -7,10 +10,6 @@ $(document).ready(function() {
     }
 
     let checkoutData = null;
-    // Mirrors the constants in controllers/checkoutController.js — there is
-    // no GET /api/checkout endpoint (the cart lives in localStorage now, see
-    // cart-store.js), so the summary is built client-side from
-    // /api/cart/resolve + /api/addresses instead.
     const DISCOUNT_RATE = 0.20;
     const FREE_SHIPPING_THRESHOLD = 3000;
     const SHIPPING_FEE = 150;
@@ -41,14 +40,9 @@ $(document).ready(function() {
                 return;
             }
 
-            // Target the correct container ID from your checkout.html
             $('#checkout-items').empty(); 
-            let calculatedSubtotal = 0;
 
             resolved.forEach(function(item) {
-                calculatedSubtotal += (item.unit_price * item.quantity);
-
-                // Safe fallback check for image_path vs image_url fields
                 const imgTrack = item.Variant && item.Variant.VariantImage 
                     ? (item.Variant.VariantImage.image_path || item.Variant.VariantImage.image_url) 
                     : '/uploads/default-shoe.png';
@@ -73,17 +67,9 @@ $(document).ready(function() {
                 $('#checkout-items').append(itemHtml);
             });
 
-            // Reconstruct checkoutData structurally so updateTotalsDisplay() functions correctly
-            checkoutData = {
-                items: resolved,
-                subtotal: calculatedSubtotal,
-                shipping_fee: calculatedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE
-            };
+            checkoutData = { items: resolved }; 
+            recalculateTotals();
 
-            // Recompute calculation metrics and update the display boxes
-            updateTotalsDisplay();
-
-            // Populate the saved addresses block
             renderSavedAddresses(addresses);
 
             $('#checkout-loading').hide();
@@ -114,49 +100,89 @@ $(document).ready(function() {
             `);
         });
 
-        updateTotalsDisplay();
+        recalculateTotals();
     }
 
-    // Recomputes the subtotal/discount/shipping/total block using the currently
-    // selected discount option. Mirrors the server-side calc in checkoutController.
-    function updateTotalsDisplay() {
-        if (!checkoutData) return;
+    function recalculateTotals() {
+        if (!checkoutData || !checkoutData.items) return;
 
-        const subtotal = parseFloat(checkoutData.subtotal);
-        const shipping = parseFloat(checkoutData.shipping_fee);
-        const discountType = $('input[name="discount_type"]:checked').val();
+        let subtotal = 0;
+        checkoutData.items.forEach(item => {
+            subtotal += parseFloat(item.unit_price) * parseInt(item.quantity);
+        });
 
         let discountAmount = 0;
-        if (discountType === 'pwd' || discountType === 'senior') {
-            discountAmount = Math.round(subtotal * discountRate * 100) / 100;
+
+        if ($('#is_pwd_senior').is(':checked')) {
+            discountAmount = subtotal * DISCOUNT_RATE;
+            $('#checkout-discount-label').text('Senior/PWD Discount');
+        } else if (appliedPromoPercent > 0) {
+            discountAmount = subtotal * (appliedPromoPercent / 100);
+            $('#checkout-discount-label').text(`Promo Code (${appliedPromoCode})`);
         }
 
-        const total = Math.max(subtotal - discountAmount, 0) + shipping;
+        const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+        const totalAmount = Math.max(0, subtotal - discountAmount + shippingFee);
 
-        $('#checkout-subtotal').text('₱' + subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 }));
-        $('#checkout-shipping').text(shipping === 0 ? 'Free' : '₱' + shipping.toLocaleString('en-US', { minimumFractionDigits: 2 }));
-        $('#checkout-total').text('₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2 }));
-
+        $('#checkout-subtotal').text(`₱${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        $('#checkout-shipping').text(shippingFee === 0 ? 'FREE' : `₱${shippingFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        $('#checkout-total').text(`₱${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        
         if (discountAmount > 0) {
-            const label = discountType === 'pwd' ? 'PWD Discount' : 'Senior Citizen Discount';
-            $('#checkout-discount-label').text(label);
-            $('#checkout-discount-amount').text('−₱' + discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+            $('#checkout-discount-amount').text(`−₱${discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
             $('#checkout-discount-row').css('display', 'flex');
         } else {
             $('#checkout-discount-row').hide();
         }
     }
 
-    // Toggle the ID-number field whenever the discount selection changes
-    $(document).on('change', 'input[name="discount_type"]', function() {
-        const type = $(this).val();
-        $('#discount-id-wrapper').toggle(type === 'pwd' || type === 'senior');
-        $('#promo-code-wrapper').toggle(type === 'promo');
-        
-        if (type !== 'pwd' && type !== 'senior') $('#discount_id_number').val('');
-        if (type !== 'promo') $('#discount_code').val('');
-        
-        updateTotalsDisplay();
+    // Handle Smooth Toggles and Mutual Exclusivity (With Combined Slide + Fade)
+    $(document).on('change', '#is_pwd_senior', function() {
+        if ($(this).is(':checked')) {
+            $('#pwd-senior-fields').css('display', 'block').animate({
+                height: 'show',
+                opacity: 1
+            }, { duration: 250, queue: false });
+
+            if ($('#toggle_promo_input').is(':checked')) {
+                $('#toggle_promo_input').prop('checked', false);
+                $('#promo-input-fields').animate({
+                    height: 'hide',
+                    opacity: 0
+                }, { duration: 200, queue: false });
+                clearPromo();
+            }
+        } else {
+            $('#pwd-senior-fields').animate({
+                height: 'hide',
+                opacity: 0
+            }, { duration: 200, queue: false });
+        }
+        recalculateTotals();
+    });
+
+    $(document).on('change', '#toggle_promo_input', function() {
+        if ($(this).is(':checked')) {
+            $('#promo-input-fields').css('display', 'block').animate({
+                height: 'show',
+                opacity: 1
+            }, { duration: 250, queue: false });
+
+            if ($('#is_pwd_senior').is(':checked')) {
+                $('#is_pwd_senior').prop('checked', false);
+                $('#pwd-senior-fields').animate({
+                    height: 'hide',
+                    opacity: 0
+                }, { duration: 200, queue: false });
+            }
+        } else {
+            $('#promo-input-fields').animate({
+                height: 'hide',
+                opacity: 0
+            }, { duration: 200, queue: false });
+            clearPromo();
+        }
+        recalculateTotals();
     });
 
     // Toggle the gcash / card payment forms whenever the payment method changes
@@ -171,7 +197,6 @@ $(document).ready(function() {
         if (method !== 'card') clearSavedCardSelection();
     });
 
-    // Lets the saved-card click handler share/reset its selection state
     function clearSavedCardSelection() {
         selectedSavedCardId = null;
         $('.saved-card-option').removeClass('is-selected');
@@ -204,13 +229,9 @@ $(document).ready(function() {
         });
     }
 
-    // Selecting a saved card fills in the cardholder name + expiry for display,
-    // disables manual entry of the masked number, and only asks for the CVV
-    // (the masked number can't be reconstructed — CVV must always be re-entered)
     $(document).on('click', '.saved-card-option', function() {
         const cardId = $(this).data('card-id');
 
-        // Clicking the already-selected card deselects it and re-enables manual entry
         if (selectedSavedCardId === cardId) {
             clearSavedCardSelection();
             return;
@@ -249,16 +270,12 @@ $(document).ready(function() {
         });
     }
 
-    // Clicking a saved address fills the form and flashes the clicked card
-    // to make the selection feel deliberate instead of a silent form-fill.
     $(document).on('click', '.saved-address-option', function() {
         const $this = $(this);
 
         $('.saved-address-option').removeClass('is-selected flash-select');
         $this.addClass('is-selected flash-select');
 
-        // Remove the flash class once its animation finishes so it can
-        // replay cleanly if the user clicks a different address and back.
         $this.on('animationend', function() {
             $this.removeClass('flash-select');
         });
@@ -280,10 +297,9 @@ $(document).ready(function() {
         const $error = $('#checkout-error');
         $error.hide();
 
-        const discountType = $('input[name="discount_type"]:checked').val();
         const paymentMethod = $('input[name="payment_method"]:checked').val();
 
-        const payload = {
+        let payload = {
             items: CartStore.read(),
             full_name: $('#full_name').val().trim(),
             phone: $('#phone').val().trim(),
@@ -291,11 +307,14 @@ $(document).ready(function() {
             city: $('#city').val().trim(),
             province: $('#province').val().trim(),
             postal_code: $('#postal_code').val().trim(),
+            address_id: $('input[name="address_id"]:checked').val(),
             payment_method: paymentMethod,
             save_address: $('#save_address').is(':checked'),
-            discount_type: (discountType === 'pwd' || discountType === 'senior') ? discountType : 'none',
-            discount_id_number: $('#discount_id_number').val().trim(),
-            discount_code: discountType === 'promo' ? $('#discount_code').val().trim() : null
+            
+            discount_type: $('#is_pwd_senior').is(':checked') ? $('#discount_type_select').val() : 'none',
+            discount_id_number: $('#is_pwd_senior').is(':checked') ? $('#discount_id_number').val().trim() : null,
+            
+            discount_code: $('#is_pwd_senior').is(':checked') ? null : appliedPromoCode
         };
 
         if (!payload.full_name || !payload.phone || !payload.address_line || !payload.city) {
@@ -303,7 +322,7 @@ $(document).ready(function() {
             return;
         }
 
-        if ((discountType === 'pwd' || discountType === 'senior') && !payload.discount_id_number) {
+        if ($('#is_pwd_senior').is(':checked') && !payload.discount_id_number) {
             $error.text('Please enter your PWD / Senior Citizen ID number.').show();
             return;
         }
@@ -352,7 +371,6 @@ $(document).ready(function() {
             data: JSON.stringify(payload),
             success: function(response) {
                 CartStore.clear();
-                // Redirect to a confirmation page, passing the new order id
                 window.location.href = `order-confirmation.html?id=${response.order.id}`;
             },
             error: function(xhr) {
@@ -362,4 +380,74 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Verification mechanism on 'Apply' click
+    $(document).on('click', '#apply-promo-btn', function(e) {
+        e.preventDefault();
+        const codeInput = $('#checkout-promo-input').val().trim().toUpperCase();
+        const $msg = $('#promo-status-msg');
+
+        if (!codeInput) {
+            $msg.text('Please enter a code.').css('color', '#c00').show();
+            return;
+        }
+
+        if ($('#is_pwd_senior').is(':checked')) {
+            $msg.text('Cannot use promo codes while Senior/PWD discount is active.').css('color', '#c00').show();
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Verifying...');
+
+        $.ajax({
+            url: `/api/admin/discounts/validate/${codeInput}`, 
+            method: 'GET', 
+            success: function(match) {
+                $btn.prop('disabled', false).text('Apply');
+                
+                // Code Verified Successfully
+                appliedPromoCode = match.code;
+                appliedPromoPercent = parseFloat(match.percent_off);
+
+                $msg.text(`Code "${match.code}" applied! (${appliedPromoPercent}% OFF)`).css('color', '#1a7a3c').show();
+                recalculateTotals();
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).text('Apply');
+                
+                // Extract the specific error message from the backend, or default to a generic one
+                const errorMessage = xhr.responseJSON && xhr.responseJSON.message 
+                    ? xhr.responseJSON.message 
+                    : 'Failed to validate code.';
+                    
+                $msg.text(errorMessage).css('color', '#c00').show();
+                
+                // Reset internal math variables but DO NOT call clearPromo() 
+                // so the user's text and the error message remain visible
+                appliedPromoCode = null;
+                appliedPromoPercent = 0;
+                recalculateTotals();
+            }
+        });
+    });
+
+    // Make sure your clearPromo function looks exactly like this.
+    // This is ONLY called when the user unchecks the promo box entirely.
+    function clearPromo() {
+        appliedPromoCode = null;
+        appliedPromoPercent = 0;
+        $('#checkout-promo-input').val('');
+        $('#promo-status-msg').hide().text('');
+        recalculateTotals();
+    }
+
+    // Clean out promo parameters cleanly
+    function clearPromo() {
+        appliedPromoCode = null;
+        appliedPromoPercent = 0;
+        $('#checkout-promo-input').val('');
+        $('#promo-status-msg').hide().text('');
+        recalculateTotals();
+    }
 });

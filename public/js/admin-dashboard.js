@@ -756,6 +756,30 @@ $(document).ready(function () {
         $('#crudModal').css('display', 'flex');
     });
 
+    $('#openCreateDiscountBtn').on('click', function () {
+        resetFormStates();
+        $('#modalTargetTitle').text('Generate Discount Codes');
+        $('#addDiscountCodeForm').show();
+        
+        // Ensure default state is set to Single Code
+        $('#bulk_generate_toggle').prop('checked', false);
+        $('#single_code_group').show();
+        $('#bulk_code_group').hide();
+        
+        $('#crudModal').css('display', 'flex');
+        });
+        $(document).on('change', '#bulk_generate_toggle', function() {
+        if ($(this).is(':checked')) {
+            $('#single_code_group').hide();
+            $('#bulk_code_group').show();
+            $('#code').val(''); // Clear single code input
+        } else {
+            $('#single_code_group').show();
+            $('#bulk_code_group').hide();
+            $('#generate_count, #prefix').val(''); // Clear bulk inputs
+        }
+    });
+
     $('#closeModalBtn').on('click', function () { $('#crudModal').hide(); resetFormStates(); });
 
     /* =================================================================
@@ -1392,6 +1416,7 @@ $(document).ready(function () {
         $('#productCrudForm')[0].reset();
         $('#categoryCrudForm')[0].reset();
         $('#announcementCrudForm')[0].reset();
+        if ($('#addDiscountCodeForm').length) $('#addDiscountCodeForm')[0].reset();
         $('#product_id_field, #category_id_field, #announcement_id_field').val('');
         $('#prod_image_preview, #prod_existing_images, #variantsListWrapper').empty();
         $('#prod_is_hidden').prop('checked', false);
@@ -1777,6 +1802,60 @@ $(document).ready(function () {
                     showToast(xhr.responseJSON?.message || 'Failed to delete discount code.', 'error');
                 }
             });
+        });
+    });
+
+    // Handle single or bulk creation form submission
+    $('#addDiscountCodeForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const isBulk = $('#bulk_generate_toggle').is(':checked');
+        
+        // Read directly from the actual input IDs in dashboard.html
+        const payload = {
+            code: $('#code').val() ? $('#code').val().trim() : '',
+            percent_off: parseFloat($('#percent_off').val()),
+            max_uses: $('#max_uses').val() ? parseInt($('#max_uses').val(), 10) : null,
+            expires_at: $('#expires_at').val() || null,
+            active: true
+        };
+
+        if (isBulk) {
+            payload.generate_count = parseInt($('#generate_count').val(), 10) || 1;
+            payload.prefix = $('#prefix').val() ? $('#prefix').val().trim() : '';
+        }
+
+        // Validation guard checks
+        if (isNaN(payload.percent_off) || payload.percent_off <= 0 || payload.percent_off > 100) {
+            showToast('Please specify a valid discount percentage between 1 and 100.', 'error');
+            return;
+        }
+
+        if (!isBulk && !payload.code) {
+            showToast('Please provide a specific discount code name or toggle bulk generation.', 'error');
+            return;
+        }
+
+        $.ajax({
+            url: '/api/admin/discounts',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'Authorization': `Bearer ${token}` },
+            data: JSON.stringify(payload),
+            success: function() {
+                showToast(isBulk ? 'Bulk discount codes generated.' : 'Discount code added.', 'success');
+                $('#addDiscountCodeForm')[0].reset();
+                
+                // Sync visible bulk view states
+                $('#single_code_group').show();
+                $('#bulk_code_group').hide();
+                
+                discountsTable.ajax.reload(null, false);
+                $('#crudModal').hide(); // Close the modal if it's open
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON?.message || 'Failed to create discount code configuration.', 'error');
+            }
         });
     });
 

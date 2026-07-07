@@ -73,41 +73,46 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 32px;">
-                    <h3 style="font-size: 16px; font-weight: 800; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
-                        Discounts
+                <div class="checkout-card" style="margin-bottom: 32px;">
+                    <h3 style="font-size: 16px; font-weight: 800; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #333;">
+                        Discounts & Promos
                     </h3>
-
-                    <div class="checkout-option">
-                        <input type="radio" name="discount_type" id="discount_none" value="none" checked>
-                        <label for="discount_none">No discount</label>
-                    </div>
-                    <div class="checkout-option">
-                        <input type="radio" name="discount_type" id="discount_pwd" value="pwd">
-                        <label for="discount_pwd">PWD Discount</label>
-                    </div>
-                    <div class="checkout-option">
-                        <input type="radio" name="discount_type" id="discount_senior" value="senior">
-                        <label for="discount_senior">Senior Citizen Discount</label>
-                    </div>
                     
-                    <div class="checkout-option" style="margin-top: 10px;">
-                        <input type="radio" name="discount_type" id="discount_promo" value="promo">
-                        <label for="discount_promo">Promo Code</label>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer;">
+                            <input type="checkbox" id="is_pwd_senior" name="is_pwd_senior">
+                            Apply Senior Citizen / PWD Discount (20% Off)
+                        </label>
                     </div>
 
-                    <div id="promo-code-wrapper" class="fade-collapsible" style="display:none; margin-top: 10px;">
-                        <div class="form-group">
-                            <label class="form-label">Discount Code</label>
-                            <input type="text" id="discount_code" name="discount_code" class="form-control" placeholder="Enter promo code" style="text-transform: uppercase;">
+                    <div id="pwd-senior-fields" style="display: none; opacity: 0; margin-bottom: 20px; padding: 16px; background: #111; border: 1px solid #222; border-radius: 4px; transition: opacity 0.25s ease-in-out;">
+                        <div style="margin-bottom: 12px;">
+                            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:6px; color: #ccc;">Discount Type</label>
+                            <select id="discount_type_select" class="form-control" style="width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333;">
+                                <option value="senior">Senior Citizen</option>
+                                <option value="pwd">PWD</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:6px; color: #ccc;">ID Number</label>
+                            <input type="text" id="discount_id_number" class="form-control" style="width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333;" placeholder="Enter ID Number">
                         </div>
                     </div>
 
-                    <div id="discount-id-wrapper" class="fade-collapsible">
-                        <div class="form-group">
-                            <label class="form-label">PWD / Senior Citizen ID Number</label>
-                            <input type="text" id="discount_id_number" name="discount_id_number" class="form-control" placeholder="Enter your ID number">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer;">
+                            <input type="checkbox" id="toggle_promo_input">
+                            Have a Promo Code?
+                        </label>
+                    </div>
+
+                    <div id="promo-input-fields" style="display: none; opacity: 0; padding: 16px; background: #111; border: 1px solid #222; border-radius: 4px; transition: opacity 0.25s ease-in-out;">
+                        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:6px; color: #ccc;">Promo Code</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="checkout-promo-input" class="form-control" style="flex: 1; padding: 12px; text-transform: uppercase; background: #1a1a1a; color: #fff; border: 1px solid #333;" placeholder="ENTER CODE">
+                            <button type="button" id="apply-promo-btn" class="btn btn-dark" style="padding: 0 20px; height: 44px;">Apply</button>
                         </div>
+                        <div id="promo-status-msg" style="display: none; margin-top: 8px; font-size: 13px; font-weight: 600;"></div>
                     </div>
                 </div>
 
@@ -229,5 +234,16 @@
     </section>
 
     <script src="js/checkout.js"></script>
+    <script>
+        // Make sure to include simple collapse toggles for the new checkboxes if needed in checkout.js or here:
+        $(document).ready(function() {
+            $('#is_pwd_senior').on('change', function() {
+                $('#pwd-senior-fields').toggle(this.checked);
+            });
+            $('#toggle_promo_input').on('change', function() {
+                $('#promo-input-fields').toggle(this.checked);
+            });
+        });
+    </script>
 </body>
 </html>
