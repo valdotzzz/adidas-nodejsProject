@@ -8,6 +8,7 @@ $(document).ready(function () {
     let showingDeletedProducts = false;
     let currentProductImages = []; // existing ProductImage rows for the product being edited
     let imagesMarkedForRemoval = [];
+    let pendingImageFiles = []; // newly-selected-but-not-yet-saved File objects, accumulated across multiple picks
 
     // Boot
     loadDashboard();
@@ -317,14 +318,34 @@ $(document).ready(function () {
         });
     }
 
-    // Image preview
+    // Image preview — accumulate newly picked files rather than letting a fresh
+    // selection replace the previous one (native <input type=file> would otherwise
+    // hand us a brand new FileList each time, silently dropping earlier picks).
     $(document).on('change', '#prod_images', function () {
+        Array.from(this.files).forEach(file => pendingImageFiles.push(file));
+        this.value = ''; // clear so the next pick fires 'change' again and never duplicates what we already stored
+        renderPendingImagePreview();
+    });
+
+    function renderPendingImagePreview() {
         const preview = $('#prod_image_preview').empty();
-        Array.from(this.files).forEach(file => {
+        pendingImageFiles.forEach((file, i) => {
             const reader = new FileReader();
-            reader.onload = e => preview.append(`<img src="${e.target.result}" style="width:64px; height:64px; object-fit:cover; border:1px solid #333;">`);
+            reader.onload = e => {
+                preview.append(`
+                    <div class="pending-image-thumb" data-index="${i}" style="position:relative;">
+                        <img src="${e.target.result}" style="width:64px; height:64px; object-fit:cover; border:1px solid #333;">
+                        <span class="remove-pending-image" data-index="${i}" style="position:absolute; top:-6px; right:-6px; background:#ff4444; color:#fff; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; font-weight:700;">✕</span>
+                    </div>`);
+            };
             reader.readAsDataURL(file);
         });
+    }
+
+    $(document).on('click', '.remove-pending-image', function () {
+        const idx = parseInt($(this).data('index'));
+        pendingImageFiles.splice(idx, 1);
+        renderPendingImagePreview();
     });
 
     /* =================================================================
@@ -689,6 +710,13 @@ $(document).ready(function () {
         $('#crudModal').css('display', 'flex');
     });
 
+    $('#openCreateUserBtn').on('click', function () {
+        resetFormStates();
+        $('#modalTargetTitle').text('Create User');
+        $('#userCrudForm').show();
+        $('#crudModal').css('display', 'flex');
+    });
+
     $('#closeModalBtn').on('click', function () { $('#crudModal').hide(); resetFormStates(); });
 
     /* =================================================================
@@ -763,8 +791,7 @@ $(document).ready(function () {
         formData.append('remove_image_ids', JSON.stringify(imagesMarkedForRemoval));
         formData.append('is_hidden', $('#prod_is_hidden').is(':checked') ? 'true' : 'false');
 
-        const files = $('#prod_images')[0].files;
-        for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
+        pendingImageFiles.forEach(file => formData.append('images', file));
 
         $.ajax({
             url: id ? `/api/products/${id}` : '/api/products',
@@ -781,8 +808,9 @@ $(document).ready(function () {
                     const savedProduct = response.product;
                     currentProductImages = savedProduct.ProductImages || [];
                     imagesMarkedForRemoval = [];
+                    pendingImageFiles = [];
                     renderExistingImages();
-                    $('#prod_images').val('');
+                    renderPendingImagePreview();
                     $('#prod_image_urls').val('');
                 } else {
                     $('#crudModal').hide();
@@ -790,6 +818,39 @@ $(document).ready(function () {
                 }
             },
             error: function (xhr) { showToast(xhr.responseJSON?.message || 'Save failed.', 'error'); }
+        });
+    });
+
+    // Images tab has its own Save button, independent of the Details tab's "Save Product".
+    // Only usable once the product exists (id present) since images attach to a product row.
+    $(document).on('click', '#saveImagesBtn', function () {
+        const id = $('#product_id_field').val();
+        if (!id) { showToast('Save the product details first, then add images.', 'error'); return; }
+
+        const formData = new FormData();
+        formData.append('image_urls', $('#prod_image_urls').val().trim());
+        formData.append('remove_image_ids', JSON.stringify(imagesMarkedForRemoval));
+        pendingImageFiles.forEach(file => formData.append('images', file));
+
+        $.ajax({
+            url: `/api/products/${id}`,
+            method: 'PUT',
+            data: formData,
+            contentType: false,
+            processData: false,
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function (response) {
+                showToast('Images saved.', 'success');
+                productsTable.ajax.reload(null, false);
+                const savedProduct = response.product;
+                currentProductImages = savedProduct.ProductImages || [];
+                imagesMarkedForRemoval = [];
+                pendingImageFiles = []; // clear the cached/pending previews now that they're persisted
+                renderExistingImages();
+                renderPendingImagePreview();
+                $('#prod_image_urls').val('');
+            },
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not save images.', 'error'); }
         });
     });
 
@@ -1030,7 +1091,22 @@ $(document).ready(function () {
         $('#variantFormLabel').text('Add a new variant');
         $('#addVariantBtn').text('+ Add');
         $('#cancelVariantEditBtn').hide();
+        updateVariantImageThumb();
     }
+
+    // Keeps the little thumbnail next to the "Assign Picture" dropdown in sync with the current selection.
+    function updateVariantImageThumb() {
+        const imageId = $('#new_variant_image_id').val();
+        const thumb = $('#variantImageThumbPreview');
+        const img = imageId ? currentProductImages.find(i => String(i.id) === String(imageId)) : null;
+        if (img) {
+            thumb.attr('src', img.image_path).show();
+        } else {
+            thumb.hide().attr('src', '');
+        }
+    }
+
+    $(document).on('change', '#new_variant_image_id', updateVariantImageThumb);
 
     $(document).on('click', '.edit-variant-btn', function () {
         const id = $(this).data('id');
@@ -1048,6 +1124,7 @@ $(document).ready(function () {
         // then select its current picture (if any).
         renderVariantsList($('#product_id_field').val(), currentVariantsCache);
         $('#new_variant_image_id').val(v.image_id || '');
+        updateVariantImageThumb();
 
         $('html, body').animate({ scrollTop: $('#variantsListWrapper').offset().top - 100 }, 200);
     });
@@ -1220,6 +1297,7 @@ $(document).ready(function () {
         $('#productImagesTab').hide();
         currentProductImages = [];
         imagesMarkedForRemoval = [];
+        pendingImageFiles = [];
         clearErrors();
     }
 

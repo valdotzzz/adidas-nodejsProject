@@ -250,6 +250,7 @@
                     <div class="section-label">Access Control Roster</div>
                     <h2 class="section-title">Manage Users</h2>
                 </div>
+                <button class="btn btn-primary" id="openCreateUserBtn" style="padding:10px 20px; font-size:12px;">+ Add User</button>
             </div>
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="usersSecureTable" class="display" style="width:100%">
@@ -496,8 +497,10 @@
                     <label style="font-size: 13px; font-weight: 800; text-transform: uppercase; color: #fff; margin-bottom: 8px; display: block;">Or Add Image URLs</label>
                     <textarea id="prod_image_urls" style="width:100%; padding:14px; background:#000; border:1px solid #333; color:#fff; min-height:60px; font-family:inherit; resize:vertical;" placeholder="One URL per line, or comma separated. Use for images hosted elsewhere (e.g. https://example.com/shoe.jpg)."></textarea>
                 </div>
-                <div style="color:#4caf50; font-size:11px; margin-bottom:8px; font-weight: 700;">Image changes are saved when you click "Save Product" on the Details tab.</div>
+                <div style="color:#777; font-size:11px; margin-bottom:12px;">Click a pending upload's ✕ to remove it before saving. Nothing here is uploaded until you click Save Images.</div>
+                <button type="button" class="btn btn-primary" id="saveImagesBtn" style="width:100%; padding:14px;">Save Images</button>
             </div>
+
 
             <div id="productVariantsTab" style="display:none; padding: 24px; background: #111; border: 1px solid #1a1a1a; margin-top: 16px; border-radius: 4px;">
                 <div style="color:#ff9800; font-weight: 700; font-size:12px; margin-bottom:20px; border-bottom: 1px solid #222; padding-bottom: 12px;">Save the product first before adding variants. Stock tracking is handled separately in the Stock Manager tab.</div>
@@ -518,9 +521,12 @@
                         </div>
                         <div class="form-group" style="margin:0;">
                             <label style="font-size:11px; color:#aaa;">Assign Picture (Optional)</label>
-                            <select id="new_variant_image_id" class="form-select-control" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff;">
-                                <option value="">No Picture</option>
-                            </select>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="new_variant_image_id" class="form-select-control" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff;">
+                                    <option value="">No Picture</option>
+                                </select>
+                                <img id="variantImageThumbPreview" style="display:none; width:44px; height:44px; object-fit:cover; border:1px solid #333; flex-shrink:0;">
+                            </div>
                         </div>
                         <div style="display:flex; gap:6px;">
                             <button type="button" class="btn btn-primary" id="addVariantBtn" style="padding:12px 16px; font-size:12px;">+ Add</button>
@@ -574,6 +580,33 @@
                     <label style="margin:0;">Active</label>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px;">Save Announcement</button>
+            </form>
+
+            <form id="userCrudForm" class="modal-form-wrapper" style="display:none;">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="user_name" required>
+                    <div class="field-error" id="err-user_name"></div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="user_email" required>
+                    <div class="field-error" id="err-user_email"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="user_password" required minlength="6">
+                    <div class="field-error" id="err-user_password"></div>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="user_role" class="form-select-control" style="width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                        <option value="customer">Customer</option>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px;">Create User</button>
             </form>
         </div>
     </div>

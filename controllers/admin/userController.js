@@ -1,4 +1,47 @@
 const { User, Address, AuditLog } = require('../../models');
+const bcrypt = require('bcryptjs');
+
+exports.createUser = async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Name, email, and password are required.' });
+        }
+        if (role && !['customer', 'staff', 'admin'].includes(role)) {
+            return res.status(422).json({ message: 'Invalid role value.' });
+        }
+
+        const userExists = await User.findOne({ where: { email } });
+        if (userExists) {
+            return res.status(400).json({ message: 'Email is already registered.' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const user = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || 'customer'
+        });
+
+        await AuditLog.create({
+            category:    req.user.role,
+            action:      'USER_CREATE',
+            description: `Created User #${user.id} — ${user.name} (${user.email}), role: ${user.role}.`,
+            meta: { id: user.id, name: user.name, email: user.email, role: user.role }
+        });
+
+        return res.status(201).json({
+            message: 'User created successfully.',
+            user: { id: user.id, name: user.name, email: user.email, role: user.role, status: user.status, createdAt: user.createdAt }
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error creating user.', error: error.message });
+    }
+};
 
 exports.getAllUsers = async (req, res) => {
     try {
