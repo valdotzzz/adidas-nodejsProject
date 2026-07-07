@@ -30,15 +30,46 @@ $(document).ready(function () {
         $(panelId).show();
     }
 
-    $('#sidebar-dashboard-btn').on('click', function (e) { e.preventDefault(); showPanel('#dashboard-section', '#sidebar-dashboard-btn'); loadDashboard(); });
-    $('#sidebar-products-btn').on('click', function (e) { e.preventDefault(); showPanel('#products-section', '#sidebar-products-btn'); productsTable.ajax.reload(null, false); });
-    $('#sidebar-categories-btn').on('click', function (e) { e.preventDefault(); showPanel('#categories-section', '#sidebar-categories-btn'); categoriesTable.ajax.reload(null, false); });
+/* =================================================================
+       CONSOLIDATED PRODUCT MANAGEMENT SUB-TAB ROUTING ENGINE
+    ================================================================= */
+    window.switchProductSubTab = function(targetTab) {
+        $('.nav-item').removeClass('active');
+        $('#sidebar-products-btn').addClass('active');
+        $('.admin-view-panel').hide();
+        $('.sub-tab-btn').css({ 'background': '#111', 'color': '#888', 'border-color': '#222' });
+
+        if (targetTab === 'products') {
+            $('#products-section').show();
+            $('.sub-tab-prod').css({ 'background': '#fff', 'color': '#000', 'border-color': '#fff' });
+            if (typeof productsTable !== 'undefined') productsTable.ajax.reload(null, false);
+        } 
+        else if (targetTab === 'categories') {
+            $('#categories-section').show();
+            $('.sub-tab-cat').css({ 'background': '#fff', 'color': '#000', 'border-color': '#fff' });
+            if (typeof categoriesTable !== 'undefined') categoriesTable.ajax.reload(null, false);
+        } 
+        else if (targetTab === 'stock') {
+            $('#stock-section').show();
+            $('.sub-tab-stock').css({ 'background': '#fff', 'color': '#000', 'border-color': '#fff' });
+            loadStockTable(); // FIX: Now successfully tells the server to fetch the data
+        }
+    };
+
+    $('#sidebar-products-btn').off('click').on('click', function (e) {
+        e.preventDefault(); switchProductSubTab('products');
+    });
+
+    $('#sidebar-categories-btn').off('click').on('click', function(e) { e.preventDefault(); switchProductSubTab('categories'); });
+    $('#sidebar-stock-btn').off('click').on('click', function(e) { e.preventDefault(); switchProductSubTab('stock'); });
     $('#sidebar-orders-btn').on('click', function (e) { e.preventDefault(); showPanel('#orders-section', '#sidebar-orders-btn'); ordersTable.ajax.reload(null, false); });
     $('#sidebar-users-btn').on('click', function (e) { e.preventDefault(); showPanel('#users-section', '#sidebar-users-btn'); usersTable.ajax.reload(null, false); });
     $('#sidebar-audit-btn').on('click', function (e) { e.preventDefault(); showPanel('#audit-section', '#sidebar-audit-btn'); auditTable.ajax.reload(null, false); });
     $('#sidebar-announcements-btn').on('click', function (e) { e.preventDefault(); showPanel('#announcements-section', '#sidebar-announcements-btn'); announcementsTable.ajax.reload(null, false); });
-    $('#sidebar-stock-btn').on('click', function (e) { e.preventDefault(); showPanel('#stock-section', '#sidebar-stock-btn'); loadStockTable(); });
-
+    $('#sidebar-variants-btn').on('click', function (e) { e.preventDefault(); showPanel('#variants-section', '#sidebar-variants-btn'); });
+    $('#sidebar-dashboard-btn').on('click', function (e) { e.preventDefault(); showPanel('#dashboard-section', '#sidebar-dashboard-btn'); loadDashboard(); });
+    $('#sidebar-products-btn').off('click').on('click', function (e) { e.preventDefault(); switchProductSubTab('products'); });
+    
     /* =================================================================
        CONFIRM MODAL (replaces window.confirm)
     ================================================================= */
@@ -109,6 +140,25 @@ $(document).ready(function () {
                 $('#stat-users').text(d.total_users);
             }
         });
+
+        // Clear previous chart instances if they exist to free the canvas elements
+        if (barChart) barChart.destroy();
+        if (lineChart) lineChart.destroy();
+        if (pieChart) pieChart.destroy();
+
+        // FIXED: Removed "Canvas" suffix to match the actual IDs in your HTML
+        const barCtx = document.getElementById('barChart')?.getContext('2d');
+        const lineCtx = document.getElementById('lineChart')?.getContext('2d');
+        const pieCtx = document.getElementById('pieChart')?.getContext('2d');
+
+        // Safe initialization guard
+        if (barCtx && lineCtx && pieCtx) {
+            barChart = new Chart(barCtx, { /* chart config */ });
+            lineChart = new Chart(lineCtx, { /* chart config */ });
+            pieChart = new Chart(pieCtx, { /* chart config */ });
+        }
+
+        // Call loadCharts to fetch the data metrics asynchronously
         loadCharts($('#chartPeriodSelect').val());
     }
 
@@ -211,14 +261,21 @@ $(document).ready(function () {
                         : '<span style="color:#555;">—</span>'
                 },
                 { data: 'createdAt', render: (d, t) => renderDataTableDate(d, t) }, 
-                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) }, 
+                { data: 'updatedAt', render: (d, t) => renderDataTableDate(d, t) },
                 {
-                    data: 'id', orderable: false,
-                    render: d => showingDeletedProducts
-                        ? `<button class="btn btn-dark restore-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#4caf50;">Restore</button>`
-                        : `<div style="display:flex; gap:8px;">
-                            <button class="btn btn-dark edit-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px;">Edit</button>
-                            <button class="btn btn-dark delete-product-row" data-id="${d}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
+                    data: 'is_hidden', orderable: false,
+                    render: d => d
+                        ? `<span style="color:#ff9800; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Hidden</span>`
+                        : `<span style="color:#4caf50; font-size:11px;">Visible</span>`
+                },
+                {
+                    data: null, orderable: false,
+                    render: (d, t, row) => showingDeletedProducts
+                        ? `<button class="btn btn-dark restore-product-row" data-id="${row.id}" style="padding:6px 12px; font-size:11px; color:#4caf50;">Restore</button>`
+                        : `<div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="btn btn-dark edit-product-row" data-id="${row.id}" style="padding:6px 12px; font-size:11px;">Edit</button>
+                            <button class="btn btn-dark toggle-product-visibility" data-id="${row.id}" data-hidden="${row.is_hidden}" style="padding:6px 12px; font-size:11px; color:${row.is_hidden ? '#4caf50' : '#ff9800'};">${row.is_hidden ? 'Show' : 'Hide'}</button>
+                            <button class="btn btn-dark delete-product-row" data-id="${row.id}" style="padding:6px 12px; font-size:11px; color:#ff4444;">Delete</button>
                         </div>`
                 }
             ],
@@ -614,6 +671,7 @@ $(document).ready(function () {
         $('#productCrudTabs').hide();
         $('#productDetailsTab').closest('form').show();
         $('#productVariantsTab').hide();
+        $('#productImagesTab').hide();
         $('#crudModal').css('display', 'flex');
     });
 
@@ -703,6 +761,7 @@ $(document).ready(function () {
         formData.append('description', $('#prod_description').val().trim());
         formData.append('image_urls', $('#prod_image_urls').val().trim());
         formData.append('remove_image_ids', JSON.stringify(imagesMarkedForRemoval));
+        formData.append('is_hidden', $('#prod_is_hidden').is(':checked') ? 'true' : 'false');
 
         const files = $('#prod_images')[0].files;
         for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
@@ -777,6 +836,7 @@ $(document).ready(function () {
                 $('#prod_price').val(p.price);
                 $('#prod_sale_price').val(p.sale_price != null ? p.sale_price : '');
                 $('#prod_description').val(p.description);
+                $('#prod_is_hidden').prop('checked', !!p.is_hidden);
                 currentProductImages = p.ProductImages || [];
                 imagesMarkedForRemoval = [];
                 renderExistingImages();
@@ -798,6 +858,23 @@ $(document).ready(function () {
                 headers: { 'Authorization': `Bearer ${token}` },
                 success: function () { showToast('Product deleted.', 'success'); productsTable.ajax.reload(null, false); },
                 error: function (xhr) { showToast(xhr.responseJSON?.message || 'Delete failed.', 'error'); }
+            });
+        });
+    });
+
+    $(document).on('click', '.toggle-product-visibility', function () {
+        const id = $(this).data('id');
+        const isHidden = $(this).data('hidden');
+        const action = isHidden ? 'show on' : 'hide from';
+        showConfirm(`${isHidden ? 'Show' : 'Hide'} this product? It will ${isHidden ? 'reappear on' : 'be hidden from'} the storefront.`, function () {
+            $.ajax({
+                url: `/api/products/${id}/visibility`, method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function (res) {
+                    showToast(res.message, 'success');
+                    productsTable.ajax.reload(null, false);
+                },
+                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Failed.', 'error'); }
             });
         });
     });
@@ -845,6 +922,8 @@ $(document).ready(function () {
         $('.product-tab-btn').removeClass('active');
         $(`.product-tab-btn[data-tab="${tab}"]`).addClass('active');
         $('#productDetailsTab').closest('form').toggle(tab === 'details');
+        $('#productImagesTab').toggle(tab === 'images');
+        if (tab === 'images') renderExistingImages();
         $('#productVariantsTab').toggle(tab === 'variants');
     }
 
@@ -1134,248 +1213,205 @@ $(document).ready(function () {
         $('#announcementCrudForm')[0].reset();
         $('#product_id_field, #category_id_field, #announcement_id_field').val('');
         $('#prod_image_preview, #prod_existing_images, #variantsListWrapper').empty();
+        $('#prod_is_hidden').prop('checked', false);
+        $('#prod_image_urls').val('');
         resetVariantForm();
         $('#productCrudTabs').hide();
+        $('#productImagesTab').hide();
         currentProductImages = [];
         imagesMarkedForRemoval = [];
         clearErrors();
     }
 
-    /* =================================================================
-       STOCK MANAGER
+/* =================================================================
+       STOCK MANAGER (REWRITTEN FOR NATIVE DATATABLES INTEGRATION)
     ================================================================= */
-
-    let stockData     = [];   // full variant list from API
-    let selectedVarIds = new Set();  // variant IDs user has checked
+    let stockTable;
+    let stockData = [];
+    let selectedVarIds = new Set();
 
     function loadStockTable() {
-        $('#stockTable tbody').html('<tr><td colspan="6" style="text-align:center; padding:32px; color:#555;">Loading…</td></tr>');
+        if (!stockTable) {
+            stockTable = $('#stockTable').DataTable({
+                ajax: {
+                    url: '/api/admin/stock', method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    dataSrc: function (json) { stockData = json; return json; }
+                },
+                columns: [
+                    {
+                        data: 'id', orderable: false,
+                        render: function(d) {
+                            const isChecked = selectedVarIds.has(d);
+                            return `<input type="checkbox" class="stock-row-cb" data-id="${d}" ${isChecked ? 'checked' : ''}>`;
+                        }
+                    },
+                    { data: 'Product', render: d => d ? d.name : '—' },
+                    { data: 'Product', render: d => `<span style="color:#aaa; font-size:11px;">${d ? d.style_code : '—'}</span>` },
+                    { data: 'Colorway', render: d => d ? d.name : '—' },
+                    { data: 'ShoeSize', render: d => d ? d.label : '—' },
+                    {
+                        data: 'stock_level',
+                        render: function(d) {
+                            const col = d === 0 ? '#ff4444' : d <= 5 ? '#ff9800' : '#4caf50';
+                            return `<span style="color:${col}; font-weight:700;">${d}</span>`;
+                        }
+                    }
+                ],
+                dom: 'lrtip', // Hides default search box to use our custom ones seamlessly
+                responsive: true
+            });
+        } else {
+            stockTable.ajax.reload(null, false);
+        }
         selectedVarIds.clear();
         updateSelectedCount();
-
-        $.ajax({
-            url: '/api/admin/stock', method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function (data) {
-                stockData = data;
-                renderStockRows(stockData);
-            },
-            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Failed to load stock data.', 'error'); }
-        });
     }
 
-    function renderStockRows(rows) {
-        const tbody = $('#stockTable tbody').empty();
+    // Fix: Custom search routing through DataTables API so sorting and pagination remain intact
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex, rowData, counter) {
+        if (settings.nTable.id !== 'stockTable') return true;
 
-        if (!rows.length) {
-            tbody.html('<tr><td colspan="6" style="text-align:center; padding:32px; color:#555;">No variants found.</td></tr>');
-            return;
-        }
-
-        rows.forEach(v => {
-            const stock     = v.stock_level;
-            const stockCol  = stock === 0  ? '#ff4444'
-                            : stock <= 5   ? '#ff9800'
-                            : '#4caf50';
-            const isChecked = selectedVarIds.has(v.id);
-            const colorway  = v.Colorway?.name  || '—';
-            const size      = v.ShoeSize?.label  || '—';
-            const product   = v.Product?.name    || '—';
-            const style     = v.Product?.style_code || '—';
-
-            tbody.append(`
-                <tr data-id="${v.id}">
-                    <td><input type="checkbox" class="stock-row-cb" data-id="${v.id}" ${isChecked ? 'checked' : ''}></td>
-                    <td>${product}</td>
-                    <td><span style="color:#aaa; font-size:11px;">${style}</span></td>
-                    <td>${colorway}</td>
-                    <td>${size}</td>
-                    <td><span style="color:${stockCol}; font-weight:700;">${stock}</span></td>
-                </tr>`);
-        });
-
-        // Re-init DataTables on this table if already initialised
-        if ($.fn.DataTable.isDataTable('#stockTable')) {
-            $('#stockTable').DataTable().destroy();
-        }
-        $('#stockTable').DataTable({
-            paging: true,
-            searching: false,   // we use our own filter bar
-            ordering: true,
-            columnDefs: [{ orderable: false, targets: 0 }],
-            responsive: true
-        });
-    }
-
-    // Filter bar — live filter on the cached data, no round-trip
-    function applyStockFilters() {
-        const prod  = $('#stock-filter-product').val().toLowerCase();
-        const cw    = $('#stock-filter-colorway').val().toLowerCase();
+        const prod = $('#stock-filter-product').val().toLowerCase();
+        const cw = $('#stock-filter-colorway').val().toLowerCase();
         const level = $('#stock-filter-level').val();
 
-        const filtered = stockData.filter(v => {
-            const name  = (v.Product?.name       || '').toLowerCase();
-            const style = (v.Product?.style_code  || '').toLowerCase();
-            const color = (v.Colorway?.name        || '').toLowerCase();
+        const name = (rowData.Product?.name || '').toLowerCase();
+        const style = (rowData.Product?.style_code || '').toLowerCase();
+        const color = (rowData.Colorway?.name || '').toLowerCase();
+        const stock = rowData.stock_level;
 
-            const prodMatch  = !prod  || name.includes(prod) || style.includes(prod);
-            const cwMatch    = !cw    || color.includes(cw);
-            const levelMatch = level === ''    ? true
-                             : level === 'out' ? v.stock_level === 0
-                             : level === 'low' ? (v.stock_level > 0 && v.stock_level <= 5)
-                             : v.stock_level > 5;
+        const prodMatch = !prod || name.includes(prod) || style.includes(prod);
+        const cwMatch = !cw || color.includes(cw);
+        const levelMatch = level === '' ? true : level === 'out' ? stock === 0 : level === 'low' ? (stock > 0 && stock <= 5) : stock > 5;
 
-            return prodMatch && cwMatch && levelMatch;
-        });
+        return prodMatch && cwMatch && levelMatch;
+    });
 
-        renderStockRows(filtered);
-    }
+    $('#stock-filter-product, #stock-filter-colorway').on('keyup input', function() { stockTable.draw(); });
+    $('#stock-filter-level').on('change', function() { stockTable.draw(); });
 
-    $('#stock-filter-product, #stock-filter-colorway').on('input', applyStockFilters);
-    $('#stock-filter-level').on('change', applyStockFilters);
-
-    // Checkbox selection
     $(document).on('change', '.stock-row-cb', function () {
         const id = parseInt($(this).data('id'));
         if ($(this).is(':checked')) selectedVarIds.add(id);
-        else                         selectedVarIds.delete(id);
+        else selectedVarIds.delete(id);
         updateSelectedCount();
     });
 
     $('#stock-header-checkbox').on('change', function () {
         const check = $(this).is(':checked');
-        $('.stock-row-cb').each(function () {
-            $(this).prop('checked', check);
-            const id = parseInt($(this).data('id'));
-            if (check) selectedVarIds.add(id);
-            else        selectedVarIds.delete(id);
+        $('.stock-row-cb').prop('checked', check);
+        stockTable.rows({ search: 'applied' }).every(function () {
+            const id = this.data().id;
+            check ? selectedVarIds.add(id) : selectedVarIds.delete(id);
         });
         updateSelectedCount();
     });
 
     $('#stock-select-all').on('click', function () {
-        $('.stock-row-cb').prop('checked', true).each(function () {
-            selectedVarIds.add(parseInt($(this).data('id')));
-        });
+        stockTable.rows({ search: 'applied' }).every(function () { selectedVarIds.add(this.data().id); });
+        $('.stock-row-cb').prop('checked', true);
         updateSelectedCount();
     });
 
     $('#stock-deselect-all').on('click', function () {
-        $('.stock-row-cb').prop('checked', false);
         selectedVarIds.clear();
+        $('.stock-row-cb').prop('checked', false);
+        $('#stock-header-checkbox').prop('checked', false);
         updateSelectedCount();
     });
 
+    // Fix: Show selected pills above datatable
     function updateSelectedCount() {
         const n = selectedVarIds.size;
-        $('#stock-selected-count').text(n > 0 ? `${n} selected` : '');
-        $('#openStockAdjustBtn').prop('disabled', n === 0);
+        $('#stock-selected-count').text(n > 0 ? `${n} variants selected` : '');
+        
+        const pillsWrap = $('#stock-selected-pills').empty();
+        if (n > 0) {
+            stockData.filter(v => selectedVarIds.has(v.id)).forEach(v => {
+                pillsWrap.append(`<span style="background:#222; border: 1px solid #444; padding:4px 8px; border-radius:4px; font-size:11px; margin-right:6px; margin-bottom:6px; display:inline-block; color:#fff;">${v.Product?.name} (${v.Colorway?.name}, Sz ${v.ShoeSize?.label})</span>`);
+            });
+        }
     }
 
-    // Open the adjustment modal
     $('#openStockAdjustBtn').on('click', function () {
-        if (!selectedVarIds.size) return;
+        if (selectedVarIds.size === 0) {
+            showToast('Please select at least one item using the checkboxes.', 'error');
+            return;
+        }
 
         const selected = stockData.filter(v => selectedVarIds.has(v.id));
-        const list     = $('#stockAdjustList').empty();
+        const list = $('#stockAdjustList').empty();
 
         selected.forEach(v => {
-            const colorway = v.Colorway?.name  || '—';
-            const size     = v.ShoeSize?.label  || '—';
-            const product  = v.Product?.name    || '—';
-            const style    = v.Product?.style_code || '';
+            const colorway = v.Colorway?.name || '—';
+            const size = v.ShoeSize?.label || '—';
+            const product = v.Product?.name || '—';
+            const style = v.Product?.style_code || '';
 
             list.append(`
                 <div class="stock-adjust-row" data-id="${v.id}" data-current="${v.stock_level}"
-                     style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center;
-                            padding:14px 0; border-bottom:1px solid #1a1a1a;">
+                     style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid #1a1a1a;">
                     <div>
                         <div style="font-weight:700; font-size:13px;">${product}</div>
-                        <div style="color:#aaa; font-size:11px; margin-top:2px;">
-                            ${style} · ${colorway} · Size ${size}
-                        </div>
-                        <div style="margin-top:4px; font-size:12px;">
-                            Current stock: <span class="stock-current-badge" style="color:#fff; font-weight:700;">${v.stock_level}</span>
-                        </div>
+                        <div style="color:#aaa; font-size:11px; margin-top:2px;">${style} · ${colorway} · Size ${size}</div>
+                        <div style="margin-top:4px; font-size:12px;">Current stock: <span class="stock-current-badge" style="color:#fff; font-weight:700;">${v.stock_level}</span></div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="stock-decrement btn btn-dark"
-                                style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">−</button>
-                        <input type="number" class="stock-delta-input"
-                               value="0"
-                               style="width:72px; text-align:center; padding:8px; background:#0a0a0a;
-                                      border:1px solid #333; color:#fff; font-size:14px; font-weight:700;">
-                        <button class="stock-increment btn btn-dark"
-                                style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">+</button>
-                        <div style="min-width:60px; text-align:center; font-size:13px; color:#aaa;">
-                            → <span class="stock-preview-val" style="font-weight:700; color:#fff;">${v.stock_level}</span>
-                        </div>
+                        <button class="stock-decrement btn btn-dark" style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">−</button>
+                        <input type="number" class="stock-delta-input" value="0" style="width:72px; text-align:center; padding:8px; background:#0a0a0a; border:1px solid #333; color:#fff; font-size:14px; font-weight:700;">
+                        <button class="stock-increment btn btn-dark" style="width:32px; height:32px; padding:0; font-size:16px; line-height:1;">+</button>
+                        <div style="min-width:60px; text-align:center; font-size:13px; color:#aaa;">→ <span class="stock-preview-val" style="font-weight:700; color:#fff;">${v.stock_level}</span></div>
                     </div>
                 </div>`);
         });
 
-        // Reset to step 1
         $('#stockAdjustStep1').show();
         $('#stockAdjustStep2').hide();
         $('#stockAdjustNextBtn').show();
         $('#stockAdjustBackBtn').hide();
         $('#stockAdjustAcceptBtn').hide();
-
         $('#stockAdjustModal').css('display', 'flex');
     });
 
-    // +/− stepper buttons inside the modal
     $(document).on('click', '.stock-increment', function () {
         const inp = $(this).siblings('.stock-delta-input');
         inp.val(parseInt(inp.val() || 0) + 1).trigger('input');
     });
+    
     $(document).on('click', '.stock-decrement', function () {
         const inp = $(this).siblings('.stock-delta-input');
         inp.val(parseInt(inp.val() || 0) - 1).trigger('input');
     });
 
-    // Live preview of resulting stock
     $(document).on('input', '.stock-delta-input', function () {
-        const row     = $(this).closest('.stock-adjust-row');
+        const row = $(this).closest('.stock-adjust-row');
         const current = parseInt(row.data('current'));
-        const delta   = parseInt($(this).val()) || 0;
-        const after   = Math.max(0, current + delta);
-
-        row.find('.stock-preview-val').text(after).css('color',
-            after === 0 ? '#ff4444' : after <= 5 ? '#ff9800' : '#4caf50'
-        );
+        const delta = parseInt($(this).val()) || 0;
+        const after = Math.max(0, current + delta);
+        row.find('.stock-preview-val').text(after).css('color', after === 0 ? '#ff4444' : after <= 5 ? '#ff9800' : '#4caf50');
     });
 
-    // "Review Changes" → build the confirmation summary
     $('#stockAdjustNextBtn').on('click', function () {
         const adjustments = buildAdjustments();
-
         if (!adjustments.length) {
             showToast('No changes entered — adjust at least one delta value.', 'error');
             return;
         }
 
-        // Build readable summary
         const confirmList = $('#stockConfirmList').empty();
         adjustments.forEach(a => {
-            const v       = stockData.find(x => x.id === a.variant_id);
-            const product = v?.Product?.name  || `Variant #${a.variant_id}`;
-            const style   = v?.Product?.style_code || '';
-            const color   = v?.Colorway?.name  || '';
-            const size    = v?.ShoeSize?.label  || '';
-            const current = parseInt($(`[data-id="${a.variant_id}"]`).data('current'));
-            const after   = Math.max(0, current + a.delta);
-            const arrow   = a.delta > 0 ? `<span style="color:#4caf50">+${a.delta}</span>`
-                                        : `<span style="color:#ff4444">${a.delta}</span>`;
+            const v = stockData.find(x => x.id === a.variant_id);
+            const current = v.stock_level; // FIX: Prevents NaN by looking at local API cache instead of DOM strings
+            const after = Math.max(0, current + a.delta);
+            const arrow = a.delta > 0 ? `<span style="color:#4caf50">+${a.delta}</span>` : `<span style="color:#ff4444">${a.delta}</span>`;
 
             confirmList.append(`
                 <div style="padding:12px 0; border-bottom:1px solid #1a1a1a; font-size:13px;">
-                    <span style="font-weight:700;">${product}</span>
-                    <span style="color:#666; font-size:11px; margin-left:6px;">${style}</span><br>
-                    <span style="color:#aaa;">${color} · Size ${size}</span><br>
-                    <span style="margin-top:4px; display:inline-block;">
-                        Stock: <strong>${current}</strong> ${arrow} → <strong>${after}</strong>
-                    </span>
+                    <span style="font-weight:700;">${v?.Product?.name || `Variant #${a.variant_id}`}</span>
+                    <span style="color:#666; font-size:11px; margin-left:6px;">${v?.Product?.style_code || ''}</span><br>
+                    <span style="color:#aaa;">${v?.Colorway?.name || ''} · Size ${v?.ShoeSize?.label || ''}</span><br>
+                    <span style="margin-top:4px; display:inline-block;">Stock: <strong>${current}</strong> ${arrow} → <strong>${after}</strong></span>
                 </div>`);
         });
 
@@ -1386,7 +1422,6 @@ $(document).ready(function () {
         $('#stockAdjustAcceptBtn').show();
     });
 
-    // "← Edit" — go back to step 1
     $('#stockAdjustBackBtn').on('click', function () {
         $('#stockAdjustStep2').hide();
         $('#stockAdjustStep1').show();
@@ -1395,41 +1430,28 @@ $(document).ready(function () {
         $('#stockAdjustAcceptBtn').hide();
     });
 
-    // "Accept Changes" — fire the API
     $('#stockAdjustAcceptBtn').on('click', function () {
         const adjustments = buildAdjustments();
-
         $.ajax({
             url: '/api/admin/stock', method: 'PATCH',
-            contentType: 'application/json',
-            data: JSON.stringify({ adjustments }),
+            contentType: 'application/json', data: JSON.stringify({ adjustments }),
             headers: { 'Authorization': `Bearer ${token}` },
             success: function (res) {
                 $('#stockAdjustModal').hide();
                 showToast(`${res.results.length} variant(s) updated.`, 'success');
-                selectedVarIds.clear();
-                updateSelectedCount();
-                loadStockTable();
+                loadStockTable(); // FIX: Will perfectly reload the table data from the server automatically
             },
-            error: function (xhr) {
-                showToast(xhr.responseJSON?.message || 'Stock update failed.', 'error');
-            }
+            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Stock update failed.', 'error'); }
         });
     });
 
-    // Close modal
-    $('#closeStockAdjustModalBtn, #stockAdjustCancelBtn').on('click', function () {
-        $('#stockAdjustModal').hide();
-    });
+    $('#closeStockAdjustModalBtn, #stockAdjustCancelBtn').on('click', function () { $('#stockAdjustModal').hide(); });
 
-    // Helper: collect non-zero delta entries from the modal form
     function buildAdjustments() {
         const adjustments = [];
         $('.stock-adjust-row').each(function () {
             const delta = parseInt($(this).find('.stock-delta-input').val()) || 0;
-            if (delta !== 0) {
-                adjustments.push({ variant_id: parseInt($(this).data('id')), delta });
-            }
+            if (delta !== 0) adjustments.push({ variant_id: parseInt($(this).data('id')), delta });
         });
         return adjustments;
     }

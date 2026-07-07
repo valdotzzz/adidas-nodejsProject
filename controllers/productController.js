@@ -39,7 +39,7 @@ function parseImageUrls(raw) {
 exports.createProduct = async (req, res) => {
     try {
         // Ensure category_id is pulled from the payload request body
-        const { name, style_code, description, price, gender, category_id, is_exclusive, sale_price, variants } = req.body;
+        const { name, style_code, description, price, gender, category_id, is_exclusive, sale_price, is_hidden, variants } = req.body;
 
         // Verify category exists
         const category = await Category.findByPk(category_id);
@@ -56,7 +56,8 @@ exports.createProduct = async (req, res) => {
             gender,
             is_exclusive: is_exclusive || false,
             sale_price: sale_price ? sale_price : null,
-            category_id
+            category_id,
+            is_hidden: is_hidden === true || is_hidden === 'true' || is_hidden === '1'
         });
         
         // Save uploaded image files, if any
@@ -95,9 +96,13 @@ exports.createProduct = async (req, res) => {
 };
 
 // Retrieve All Products with Associations
+// Admin/staff see all products (including hidden); everyone else sees only visible ones.
 exports.getAllProducts = async (req, res) => {
     try {
+        const isAdminOrStaff = req.user && (req.user.role === 'admin' || req.user.role === 'staff');
+        const where = isAdminOrStaff ? {} : { is_hidden: false };
         const products = await Product.findAll({
+            where,
             include: [Category, Variant, ProductImage]
         });
         return res.status(200).json(products);
@@ -124,6 +129,11 @@ exports.updateProduct = async (req, res) => {
         // normalize that to null so the DECIMAL column (and "on sale" checks) behave.
         if (productFields.sale_price === '') {
             productFields.sale_price = null;
+        }
+
+        // Normalize is_hidden from FormData strings to a real boolean.
+        if ('is_hidden' in productFields) {
+            productFields.is_hidden = productFields.is_hidden === true || productFields.is_hidden === 'true' || productFields.is_hidden === '1';
         }
 
         // Snapshot the previous sale_price so we can tell, after saving, whether this
@@ -246,9 +256,29 @@ exports.getProductById = async (req, res) => {
             return res.status(404).json({ message: 'Product not found.' });
         }
 
+        // Hidden products are invisible on the storefront; only admin/staff can fetch them directly.
+        const isAdminOrStaff = req.user && (req.user.role === 'admin' || req.user.role === 'staff');
+        if (product.is_hidden && !isAdminOrStaff) {
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+
         res.json(product);
     } catch (error) {
         console.error('Error fetching product details:', error);
         res.status(500).json({ message: 'Internal server error during relationship evaluation.', error: error.message });
+    }
+};
+// PATCH /api/products/:id/visibility — flip is_hidden (admin/staff)
+exports.toggleVisibility = async (req, res) => {
+    try {
+        const product = await db.Product.findByPk(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found.' });
+        await product.update({ is_hidden: !product.is_hidden });
+        return res.status(200).json({
+            message: product.is_hidden ? 'Product hidden from storefront.' : 'Product visible on storefront.',
+            product
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error toggling visibility.', error: error.message });
     }
 };

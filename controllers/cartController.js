@@ -45,7 +45,7 @@ exports.resolveCart = async (req, res) => {
         const staleVariantIds = []; // couldn't be found -- product/variant deleted or from before the size/colorway migration
         for (const [variantId, requestedQty] of mergedQty.entries()) {
             const variant = variantMap.get(variantId);
-            if (!variant || !variant.Product) {
+            if (!variant || !variant.Product || variant.Product.is_hidden) {
                 staleVariantIds.push(variantId);
                 continue;
             }

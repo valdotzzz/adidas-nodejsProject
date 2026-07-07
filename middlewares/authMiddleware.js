@@ -37,6 +37,20 @@ exports.protect = async (req, res, next) => {
     }
 };
 
+// Like protect but never blocks — just attaches req.user if a valid token is present.
+// Used on public routes that behave differently for authenticated admins/staff.
+exports.optionalProtect = async (req, res, next) => {
+    try {
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+            const token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const user = await User.findByPk(decoded.id);
+            if (user && user.status !== 'deactivated') req.user = user;
+        }
+    } catch (_) { /* invalid/expired token — treat as unauthenticated */ }
+    next();
+};
+
 // Middleware to restrict access to specific roles (Fulfills Quiz 6)
 exports.authorize = (...roles) => {
     return (req, res, next) => {

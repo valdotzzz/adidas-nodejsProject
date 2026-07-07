@@ -23,12 +23,9 @@
         <nav class="sidebar-nav">
             <div class="nav-section-title">Overview</div>
             <a href="#" class="nav-item active" id="sidebar-dashboard-btn">📊 Dashboard</a>
-            <a href="#" class="nav-item" id="sidebar-products-btn">👟 Products</a>
-            <a href="#" class="nav-item" id="sidebar-categories-btn">🏷️ Categories</a>
-            <a href="#" class="nav-item" id="sidebar-orders-btn">🧾 Orders</a>
+            <a href="#" id="sidebar-products-btn" class="nav-item">👟 Product Management</a>
             <a href="#" class="nav-item" id="sidebar-users-btn">👤 Users</a>
             <a href="#" class="nav-item" id="sidebar-audit-btn">📋 Audit Logs</a>
-            <a href="#" class="nav-item" id="sidebar-stock-btn">📦 Stock Manager</a>
             <a href="#" class="nav-item" id="sidebar-announcements-btn">📣 Announcements</a>
 
             <div class="nav-section-title">Account</div>
@@ -57,22 +54,39 @@
             </div>
 
             <!-- Stat cards -->
-            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;">
-                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Total Revenue</div>
-                    <div id="stat-revenue" style="font-size:28px; font-weight:800; margin-top:8px;">—</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; margin-bottom:32px;">
+                <div onclick="$('#sidebar-products-btn').click();" style="background:#111; border:1px solid #222; padding:24px; cursor:pointer; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#444'" onmouseout="this.style.borderColor='#222'">
+                    <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:8px;">Catalog Overview</div>
+                    <div style="font-size:24px; font-weight:800; color:#fff; margin-bottom:12px;">MANAGE PRODUCTS</div>
+                    <span style="font-size:12px; color:#fff; text-decoration:underline;">Go to Products Panel →</span>
                 </div>
-                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">New Orders (30d)</div>
-                    <div id="stat-orders" style="font-size:28px; font-weight:800; margin-top:8px;">—</div>
+                <div onclick="$('#sidebar-audit-btn').click();" style="background:#111; border:1px solid #222; padding:24px; cursor:pointer; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#444'" onmouseout="this.style.borderColor='#222'">
+                    <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:8px;">Security & History</div>
+                    <div style="font-size:24px; font-weight:800; color:#fff; margin-bottom:12px;">VIEW AUDIT LOGS</div>
+                    <span style="font-size:12px; color:#fff; text-decoration:underline;">Go to Logs Panel →</span>
                 </div>
-                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Low Stock Variants</div>
-                    <div id="stat-lowstock" style="font-size:28px; font-weight:800; margin-top:8px; color:#ff4444;">—</div>
+                <div onclick="$('#sidebar-announcements-btn').click();" style="background:#111; border:1px solid #222; padding:24px; cursor:pointer; transition:border-color 0.2s;" onmouseover="this.style.borderColor='#444'" onmouseout="this.style.borderColor='#222'">
+                    <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:8px;">Communications</div>
+                    <div style="font-size:24px; font-weight:800; color:#fff; margin-bottom:12px;">MANAGE ANNOUNCEMENTS</div>
+                    <span style="font-size:12px; color:#fff; text-decoration:underline;">Go to Announcements Panel →</span>
                 </div>
-                <div class="table-card" style="background:#111; border:1px solid #1a1a1a; padding:24px;">
-                    <div style="color:#aaa; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Total Users</div>
-                    <div id="stat-users" style="font-size:28px; font-weight:800; margin-top:8px;">—</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:32px;">
+                <div style="background:#111; border:1px solid #222; padding:24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin:0;">Low Stock Alerts</h3>
+                        <button onclick="$('#sidebar-stock-btn').click();" style="background:transparent; border:none; color:#fff; text-decoration:underline; cursor:pointer; font-size:12px; font-weight:700;">Manage Stock →</button>
+                    </div>
+                    <div id="dashboard-low-stock-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+                </div>
+
+                <div style="background:#111; border:1px solid #222; padding:24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin:0;">Recent Activity</h3>
+                        <button onclick="$('#sidebar-orders-btn').click();" style="background:transparent; border:none; color:#fff; text-decoration:underline; cursor:pointer; font-size:12px; font-weight:700;">View Orders →</button>
+                    </div>
+                    <div id="dashboard-recent-orders-list" style="display:flex; flex-direction:column; gap:12px;"></div>
                 </div>
             </div>
 
@@ -115,6 +129,11 @@
 
         <!-- ===================== PRODUCTS ===================== -->
         <div id="products-section" class="admin-view-panel" style="display:none;">
+            <div class="product-management-tabs" style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #222; padding-bottom: 8px;">
+                <button type="button" class="sub-tab-btn sub-tab-prod" onclick="switchProductSubTab('products')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Products</button>
+                <button type="button" class="sub-tab-btn sub-tab-cat" onclick="switchProductSubTab('categories')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Categories</button>
+                <button type="button" class="sub-tab-btn sub-tab-stock" onclick="switchProductSubTab('stock')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Stock Management</button>
+            </div>
             <div class="section-header" style="margin-bottom:20px;">
                 <div>
                     <div class="section-label">Inventory Control Matrix</div>
@@ -158,6 +177,7 @@
                             <th>Sale</th>
                             <th>Created At</th>
                             <th>Updated At</th>
+                            <th>Visibility</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -168,6 +188,11 @@
 
         <!-- ===================== CATEGORIES ===================== -->
         <div id="categories-section" class="admin-view-panel" style="display:none;">
+            <div class="product-management-tabs" style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #222; padding-bottom: 8px;">
+                <button type="button" class="sub-tab-btn sub-tab-prod" onclick="switchProductSubTab('products')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Products</button>
+                <button type="button" class="sub-tab-btn sub-tab-cat" onclick="switchProductSubTab('categories')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Categories</button>
+                <button type="button" class="sub-tab-btn sub-tab-stock" onclick="switchProductSubTab('stock')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Stock Management</button>
+            </div>
             <div class="section-header" style="margin-bottom:30px;">
                 <div>
                     <div class="section-label">Taxonomy Architecture</div>
@@ -304,18 +329,22 @@
         </div>
 
         <!-- ===================== STOCK MANAGER ===================== -->
-        <div id="stock-section" class="admin-view-panel" style="display:none;">
+<div id="stock-section" class="admin-view-panel" style="display:none;">
+            <div class="product-management-tabs" style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #222; padding-bottom: 8px;">
+                <button type="button" class="sub-tab-btn sub-tab-prod" onclick="switchProductSubTab('products')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Products</button>
+                <button type="button" class="sub-tab-btn sub-tab-cat" onclick="switchProductSubTab('categories')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Categories</button>
+                <button type="button" class="sub-tab-btn sub-tab-stock" onclick="switchProductSubTab('stock')" style="background: #222; color: #fff; border: 1px solid #333; padding: 10px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;">Stock Management</button>
+            </div>
             <div class="section-header" style="margin-bottom:20px;">
                 <div>
                     <div class="section-label">Inventory Control</div>
                     <h2 class="section-title">Stock Manager</h2>
                 </div>
-                <button id="openStockAdjustBtn" class="btn btn-primary" style="padding:10px 20px; font-size:12px;" disabled>
+                <button id="openStockAdjustBtn" class="btn btn-primary" style="padding:10px 20px; font-size:12px;">
                     Adjust Selected Stock
                 </button>
             </div>
 
-            <!-- Product filter bar for stock table -->
             <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;">
                 <input type="text" id="stock-filter-product" placeholder="Filter by product name or style…"
                     style="padding:10px 14px; background:#1a1a1a; border:1px solid #333; color:#fff; font-size:12px; width:240px;">
@@ -331,6 +360,8 @@
                 <button id="stock-deselect-all" class="btn btn-dark" style="padding:10px 16px; font-size:12px;">Deselect All</button>
                 <span id="stock-selected-count" style="color:#aaa; font-size:12px; min-width:80px;"></span>
             </div>
+
+            <div id="stock-selected-pills" style="margin-bottom:12px;"></div>
 
             <div class="table-card" style="background:#111; padding:24px; border:1px solid #1a1a1a;">
                 <table id="stockTable" class="display" style="width:100%">
@@ -392,9 +423,10 @@
                 <button class="admin-modal-close" id="closeModalBtn">✕</button>
             </div>
 
-            <div id="productCrudTabs" style="display:none; gap:8px; margin-bottom:16px;">
-                <button type="button" class="btn btn-dark product-tab-btn active" data-tab="details" style="padding:8px 16px; font-size:12px;">Details</button>
-                <button type="button" class="btn btn-dark product-tab-btn" data-tab="variants" style="padding:8px 16px; font-size:12px;">Variants</button>
+            <div id="productCrudTabs" style="display:none; gap:8px; margin-bottom:16px; justify-content:center;">
+                <button type="button" class="btn btn-dark product-tab-btn active" data-tab="details" style="padding:8px 20px; font-size:12px;">Details</button>
+                <button type="button" class="btn btn-dark product-tab-btn" data-tab="images" style="padding:8px 20px; font-size:12px;">Images</button>
+                <button type="button" class="btn btn-dark product-tab-btn" data-tab="variants" style="padding:8px 20px; font-size:12px;">Variants</button>
             </div>
 
             <form id="productCrudForm" class="modal-form-wrapper" style="display:none;" enctype="multipart/form-data">
@@ -439,43 +471,54 @@
                     <label>Description</label>
                     <textarea id="prod_description" style="width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:#fff; min-height:80px; font-family:inherit; resize:vertical;"></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Existing Images</label>
-                    <div id="prod_existing_images" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
-                    <div style="color:#777; font-size:11px;">Click an image to mark it for removal. Marked images are deleted on save.</div>
-                </div>
-                <div class="form-group">
-                    <label>Upload New Images</label>
-                    <input type="file" id="prod_images" multiple accept="image/*" style="color:#fff; font-size:13px;">
-                    <div style="color:#777; font-size:11px; margin-top:6px;">Select multiple images. First remaining image becomes the primary display image.</div>
-                    <div id="prod_image_preview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Or Add Image URLs</label>
-                    <textarea id="prod_image_urls" style="width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:#fff; min-height:60px; font-family:inherit; resize:vertical;" placeholder="One URL per line, or comma separated. Use for images hosted elsewhere (e.g. https://example.com/shoe.jpg)."></textarea>
+                <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="prod_is_hidden" style="width:auto; accent-color:#fff;">
+                    <label style="margin:0; cursor:pointer;" for="prod_is_hidden">Hide from storefront</label>
+                    <span style="color:#777; font-size:11px;">Hidden products are invisible to customers and cannot be purchased.</span>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px;">Save Product</button>
                 </div>
             </form>
 
-            <div id="productVariantsTab" style="display:none;">
-                <div style="color:#777; font-size:12px; margin-bottom:14px;">Save the product first before adding variants. Stock tracking is handled separately in the Stock Manager tab.</div>
-                <div id="variantsListWrapper" style="margin-bottom:20px;"></div>
-                <div style="border-top:1px solid #222; padding-top:16px;">
-                    <div id="variantFormLabel" style="font-size:11px; color:#777; margin-bottom:8px;">Add a new variant</div>
+            <div id="productImagesTab" style="display:none; padding: 24px; background: #111; border: 1px solid #1a1a1a; margin-top: 16px; border-radius: 4px;">
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label style="font-size: 13px; font-weight: 800; text-transform: uppercase; color: #fff; margin-bottom: 8px; display: block;">Existing Images</label>
+                    <div id="prod_existing_images" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                    <div style="color:#777; font-size:11px;">Click an image to mark it for removal. Marked images are deleted on save.</div>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label style="font-size: 13px; font-weight: 800; text-transform: uppercase; color: #fff; margin-bottom: 8px; display: block;">Upload New Images</label>
+                    <input type="file" id="prod_images" multiple accept="image/*" style="color:#fff; font-size:13px; background: #000; padding: 10px; border: 1px solid #333; width: 100%;">
+                    <div style="color:#777; font-size:11px; margin-top:6px;">Select multiple images. First remaining image becomes the primary display image.</div>
+                    <div id="prod_image_preview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 13px; font-weight: 800; text-transform: uppercase; color: #fff; margin-bottom: 8px; display: block;">Or Add Image URLs</label>
+                    <textarea id="prod_image_urls" style="width:100%; padding:14px; background:#000; border:1px solid #333; color:#fff; min-height:60px; font-family:inherit; resize:vertical;" placeholder="One URL per line, or comma separated. Use for images hosted elsewhere (e.g. https://example.com/shoe.jpg)."></textarea>
+                </div>
+                <div style="color:#4caf50; font-size:11px; margin-bottom:8px; font-weight: 700;">Image changes are saved when you click "Save Product" on the Details tab.</div>
+            </div>
+
+            <div id="productVariantsTab" style="display:none; padding: 24px; background: #111; border: 1px solid #1a1a1a; margin-top: 16px; border-radius: 4px;">
+                <div style="color:#ff9800; font-weight: 700; font-size:12px; margin-bottom:20px; border-bottom: 1px solid #222; padding-bottom: 12px;">Save the product first before adding variants. Stock tracking is handled separately in the Stock Manager tab.</div>
+                
+                <div id="variantsListWrapper" style="margin-bottom:24px;"></div>
+                
+                <div style="border-top:1px solid #222; padding-top:20px;">
+                    <div id="variantFormLabel" style="font-size:13px; font-weight: 800; text-transform: uppercase; color:#fff; margin-bottom:16px;">Add a new variant</div>
                     <input type="hidden" id="editing_variant_id" value="">
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:end;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end;">
                         <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Colorway</label>
-                            <select id="new_variant_colorway_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;"></select>
+                            <label style="font-size:11px; color:#aaa;">Colorway</label>
+                            <select id="new_variant_colorway_id" class="form-select-control" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff;"></select>
                         </div>
                         <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Size</label>
-                            <select id="new_variant_size_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;"></select>
+                            <label style="font-size:11px; color:#aaa;">Size</label>
+                            <select id="new_variant_size_id" class="form-select-control" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff;"></select>
                         </div>
                         <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Assign Picture (Optional)</label>
-                            <select id="new_variant_image_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                            <label style="font-size:11px; color:#aaa;">Assign Picture (Optional)</label>
+                            <select id="new_variant_image_id" class="form-select-control" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff;">
                                 <option value="">No Picture</option>
                             </select>
                         </div>

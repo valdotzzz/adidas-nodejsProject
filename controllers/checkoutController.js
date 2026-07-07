@@ -58,7 +58,7 @@ async function resolveAndValidateCart(items, transaction) {
     for (const [variantId, quantity] of mergedQty.entries()) {
         const variant = variantMap.get(variantId);
 
-        if (!variant || !variant.Product) {
+        if (!variant || !variant.Product || variant.Product.is_hidden) {
             throw { status: 400, message: 'One of the items in your cart is no longer available.' };
         }
         if (variant.stock_level < quantity) {

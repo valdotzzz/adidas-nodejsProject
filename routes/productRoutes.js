@@ -1,18 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const { protect, authorize } = require('../middlewares/authMiddleware');
+const { protect, authorize, optionalProtect } = require('../middlewares/authMiddleware');
 const auditLog = require('../middlewares/auditLogger');
 const upload = require('../middlewares/upload');
 
-// Public
-router.get('/', productController.getAllProducts);
+// Public (optionalProtect lets admin/staff see hidden products too)
+router.get('/', optionalProtect, productController.getAllProducts);
 
 // Admin/Staff — soft-delete management (must come before '/:id' so 'trash' isn't parsed as an id)
 router.get('/trash/list', protect, authorize('admin', 'staff'), productController.getDeletedProducts);
 router.patch('/:id/restore', protect, authorize('admin', 'staff'), auditLog('admin', 'Restored product'), productController.restoreProduct);
 
-router.get('/:id', productController.getProductById);
+router.get('/:id', optionalProtect, productController.getProductById);
+router.patch('/:id/visibility', protect, authorize('admin', 'staff'), auditLog('admin', 'Toggled product visibility'), productController.toggleVisibility);
 
 // Admin/Staff
 router.post('/', protect, authorize('admin', 'staff'), upload.array('images', 10), auditLog('admin', 'Created product'), productController.createProduct);

@@ -1,7 +1,5 @@
-const { Variant, Product, Colorway, ShoeSize } = require('../../models');
+const { Variant, Product, Colorway, ShoeSize, AuditLog } = require('../../models');
 
-// GET /api/admin/stock
-// Returns every variant with full readable info for the stock manager UI
 exports.getAllVariantsForStock = async (req, res) => {
     try {
         const variants = await Variant.findAll({
@@ -9,14 +7,14 @@ exports.getAllVariantsForStock = async (req, res) => {
                 {
                     model: Product,
                     attributes: ['id', 'name', 'style_code'],
-                    where: { price: { [require('sequelize').Op.gt]: 0 } }   // skip un-priced / private products
+                    where: { price: { [require('sequelize').Op.gt]: 0 } }
                 },
                 { model: Colorway,  attributes: ['id', 'name'] },
                 { model: ShoeSize,  attributes: ['id', 'label', 'us_size'] }
             ],
             order: [
-                [Product, 'name', 'ASC'],
-                [Colorway, 'name', 'ASC'],
+                [Product,  'name',    'ASC'],
+                [Colorway, 'name',    'ASC'],
                 [ShoeSize, 'us_size', 'ASC']
             ]
         });
@@ -27,9 +25,7 @@ exports.getAllVariantsForStock = async (req, res) => {
 };
 
 // PATCH /api/admin/stock
-// Body: { adjustments: [{ variant_id: Number, delta: Number }] }
-// delta is signed — positive adds stock, negative removes it.
-// Enforces that resulting stock never goes below 0.
+// Body: { adjustments: [{ variant_id, delta }] }
 exports.batchAdjustStock = async (req, res) => {
     const { adjustments } = req.body;
 
@@ -55,36 +51,38 @@ exports.batchAdjustStock = async (req, res) => {
                 transaction: t
             });
 
-            if (!variant) {
-                throw { status: 404, message: `Variant ${variant_id} not found.` };
-            }
+            if (!variant) throw { status: 404, message: `Variant ${variant_id} not found.` };
 
             const before = variant.stock_level;
-            const after  = Math.max(0, before + delta);   // floor at 0
-
+            const after  = Math.max(0, before + delta);
             await variant.update({ stock_level: after }, { transaction: t });
 
             results.push({
                 variant_id,
-                product:   variant.Product?.name,
-                style:     variant.Product?.style_code,
-                colorway:  variant.Colorway?.name,
-                size:      variant.ShoeSize?.label,
+                product:  variant.Product?.name,
+                style:    variant.Product?.style_code,
+                colorway: variant.Colorway?.name,
+                size:     variant.ShoeSize?.label,
                 before,
                 delta,
                 after
             });
         }
 
-        await t.commit();
+        await AuditLog.create({
+            category:    req.user.role,
+            action:      'BATCH_STOCK_ADJUSTMENT',
+            description: `Adjusted stock for ${results.length} variant(s).`,
+            meta: {
+                adjusted_by: req.user.id,
+                adjustments: results
+            }
+        }, { transaction: t });
 
-        return res.status(200).json({
-            message: `${results.length} variant(s) updated.`,
-            results
-        });
+        await t.commit();
+        return res.status(200).json({ message: `${results.length} variant(s) updated.`, results });
     } catch (err) {
         await t.rollback();
-        const status = err.status || 500;
-        return res.status(status).json({ message: err.message || 'Error adjusting stock.' });
+        return res.status(err.status || 500).json({ message: err.message || 'Error adjusting stock.' });
     }
 };
