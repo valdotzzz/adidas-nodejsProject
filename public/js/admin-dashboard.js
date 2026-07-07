@@ -1279,6 +1279,60 @@ $(document).ready(function () {
             });
         });
     });
+    
+    /* =================================================================
+       USER CRUD (CREATE)
+    ================================================================= */
+    $('#userCrudForm').on('submit', function (e) {
+        e.preventDefault();
+        
+        // 1. Clear previous errors
+        clearErrors();
+        let valid = true;
+        
+        // 2. Gather values
+        const name = $('#user_name').val().trim();
+        const email = $('#user_email').val().trim();
+        const password = $('#user_password').val();
+        const role = $('#user_role').val();
+
+        // 3. Inline Validation
+        if (!name) { 
+            setError('user_name', 'Name is required.'); 
+            valid = false; 
+        }
+        if (!email) { 
+            setError('user_email', 'Email is required.'); 
+            valid = false; 
+        }
+        if (!password || password.length < 6) { 
+            setError('user_password', 'Password must be at least 6 characters.'); 
+            valid = false; 
+        }
+
+        if (!valid) return;
+
+        // 4. Construct Payload
+        const payload = { name, email, password, role };
+
+        // 5. Send POST request to backend
+        $.ajax({
+            url: '/api/admin/users', // Make sure this matches your Express route for createUser
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function () {
+                $('#crudModal').hide();
+                showToast('User created successfully.', 'success');
+                usersTable.ajax.reload(null, false);
+                resetFormStates();
+            },
+            error: function (xhr) { 
+                showToast(xhr.responseJSON?.message || 'Failed to create user.', 'error'); 
+            }
+        });
+    });
 
     /* =================================================================
        UTILITIES
