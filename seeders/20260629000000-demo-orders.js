@@ -23,9 +23,12 @@ module.exports = {
       { type: Sequelize.QueryTypes.SELECT }
     );
     const variants = await queryInterface.sequelize.query(
-      `SELECT v.id, v.colorway, v.size_type, v.size_value, v.product_id,
+      `SELECT v.id, v.product_id, cw.name AS colorway, sz.us_size AS size_value,
               p.name AS product_name, p.price, p.sale_price, p.style_code
-       FROM variants v JOIN products p ON v.product_id = p.id
+       FROM variants v
+       JOIN products p ON v.product_id = p.id
+       LEFT JOIN colorways cw ON v.colorway_id = cw.id
+       LEFT JOIN shoe_sizes sz ON v.size_id = sz.id
        WHERE v.stock_level > 0;`,
       { type: Sequelize.QueryTypes.SELECT }
     );
@@ -123,13 +126,17 @@ module.exports = {
       const items = orderItemBatches[i];
       items.forEach(({ v, qty, price }) => {
         orderItemRows.push({
-          order_id:   order.id,
-          product_id: v.product_id,
-          variant_id: v.id,
+          order_id:     order.id,
+          product_id:   v.product_id,
+          variant_id:   v.id,
+          product_name: v.product_name,
+          colorway:     v.colorway,
+          size_type:    v.size_value !== null ? 'US' : null,
+          size_value:   v.size_value,
           price,
-          quantity:   qty,
-          createdAt:  order.createdAt,
-          updatedAt:  order.createdAt
+          quantity:     qty,
+          createdAt:    order.createdAt,
+          updatedAt:    order.createdAt
         });
       });
     });

@@ -16,7 +16,7 @@ const ReviewImage = require('./ReviewImage');
 const AuditLog    = require('./AuditLog');
 const Wishlist    = require('./Wishlist');
 const Notification = require('./Notification');
-const Announcement = require('./announcement');   // lowercase — matches actual filename on disk
+const Announcement = require('./Announcement');
 
 const db = {
     User, Category, Product, ProductImage,

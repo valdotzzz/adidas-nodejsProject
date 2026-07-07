@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Variant, Product, ProductImage, Order, OrderItem, Address, User } = db;
+const { Variant, Product, ProductImage, Order, OrderItem, Address, User, Colorway, ShoeSize } = db;
 const { sendOrderConfirmationEmail } = require('../utils/sendOrderEmail');
 
 const DISCOUNT_RATE = 0.20; // RA 9994 / RA 10754 -- PWD & Senior Citizen
@@ -35,26 +35,38 @@ async function resolveAndValidateCart(items, transaction) {
         throw { status: 400, message: 'Your cart is empty.' };
     }
 
-    const variantIds = [...new Set(items.map(i => parseInt(i.variant_id, 10)).filter(Boolean))];
+    // Merge duplicate variant_id lines (e.g. leftover duplicate localStorage
+    // rows) by summing quantity instead of creating separate order lines
+    // for the exact same variant.
+    const mergedQty = new Map(); // variant_id -> summed quantity
+    for (const item of items) {
+        const vid = parseInt(item.variant_id, 10);
+        if (!Number.isInteger(vid)) continue;
+        const qty = parseInt(item.quantity, 10) || 1;
+        mergedQty.set(vid, (mergedQty.get(vid) || 0) + qty);
+    }
+
+    const variantIds = [...mergedQty.keys()];
     const variants = await Variant.findAll({
         where: { id: variantIds },
-        include: [Product],
+        include: [Product, Colorway, ShoeSize],
         transaction
     });
     const variantMap = new Map(variants.map(v => [v.id, v]));
 
     const resolved = [];
-    for (const item of items) {
-        const variant = variantMap.get(parseInt(item.variant_id, 10));
-        const quantity = parseInt(item.quantity, 10) || 1;
+    for (const [variantId, quantity] of mergedQty.entries()) {
+        const variant = variantMap.get(variantId);
 
         if (!variant || !variant.Product) {
             throw { status: 400, message: 'One of the items in your cart is no longer available.' };
         }
         if (variant.stock_level < quantity) {
+            const colorwayName = variant.Colorway ? variant.Colorway.name : '';
+            const sizeLabel = variant.ShoeSize ? variant.ShoeSize.label : '';
             throw {
                 status: 400,
-                message: `${variant.Product.name} (${variant.colorway}, ${variant.size_type} ${variant.size_value}) no longer has enough stock.`
+                message: `${variant.Product.name} (${colorwayName}, ${sizeLabel}) no longer has enough stock.`
             };
         }
 
@@ -137,9 +149,9 @@ exports.placeOrder = async (req, res) => {
                 product_id: line.variant.Product.id,
                 variant_id: line.variant.id,
                 product_name: line.variant.Product.name,
-                colorway: line.variant.colorway,
-                size_type: line.variant.size_type,
-                size_value: line.variant.size_value,
+                colorway: line.variant.Colorway ? line.variant.Colorway.name : null,
+                size_type: line.variant.ShoeSize ? 'US' : null,
+                size_value: line.variant.ShoeSize ? line.variant.ShoeSize.us_size : null,
                 price: line.price,
                 quantity: line.quantity
             }, { transaction: t });

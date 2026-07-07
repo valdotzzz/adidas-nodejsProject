@@ -69,6 +69,10 @@ $(document).ready(function() {
                     renderColorways();
                     renderVariantButtons();
                 }
+                // Shopee-style label: this picture belongs to a specific colorway variant
+                $('#detail-image-variant-label').text(matchedVariant.Colorway.name).show();
+            } else {
+                $('#detail-image-variant-label').hide();
             }
         }
     });
@@ -135,7 +139,7 @@ $(document).ready(function() {
                 : `<span style="font-weight:700;">${cw.name}</span>`;
                 
             cwContainer.append(`
-                <button class="btn cw-opt-btn" data-id="${cw.id}" data-img="${cw.image ? cw.image.image_path : ''}" 
+                <button class="btn cw-opt-btn" data-id="${cw.id}" data-img="${cw.image ? cw.image.image_path : ''}" data-name="${cw.name}" 
                     style="padding: 6px 14px; font-size: 12px; display:flex; align-items:center; gap:8px; 
                            border: 1px solid ${isActive ? '#fff' : '#333'}; 
                            background: ${isActive ? '#fff' : '#111'}; 
@@ -158,6 +162,9 @@ $(document).ready(function() {
             $('#detail-image').attr('src', resolveImagePath(imgPath));
             $('.detail-thumb').css('border-color', '#333').removeClass('detail-thumb--active');
             $(`.detail-thumb[data-src="${resolveImagePath(imgPath)}"]`).css('border-color', '#fff').addClass('detail-thumb--active');
+            $('#detail-image-variant-label').text($(this).data('name') || '').show();
+        } else {
+            $('#detail-image-variant-label').hide();
         }
     });
 
@@ -173,7 +180,7 @@ $(document).ready(function() {
 
         if (filteredVariants.length > 0) {
             filteredVariants.forEach(variant => {
-                const usSize = variant.ShoeSize ? variant.ShoeSize.us_size : variant.size_value;
+                const usSize = variant.ShoeSize ? variant.ShoeSize.us_size : null;
                 const sizeLabel = formatSizeLabel(usSize, currentProduct.gender);
                 const isOutOfStock = variant.stock_level <= 0;
                 

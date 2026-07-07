@@ -32,7 +32,7 @@ $(document).ready(function() {
             CartStore.resolve(token),
             $.ajax({ url: '/api/addresses', method: 'GET', headers: { 'Authorization': 'Bearer ' + token } })
         ).done(function(resolvedResp, addressesResp) {
-            const resolved = resolvedResp[0];
+            const resolved = resolvedResp; 
             const addresses = addressesResp[0];
 
             if (!resolved || resolved.length === 0) {
@@ -41,28 +41,59 @@ $(document).ready(function() {
                 return;
             }
 
-            const subtotal = resolved.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
-            const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+            // Target the correct container ID from your checkout.html
+            $('#checkout-items').empty(); 
+            let calculatedSubtotal = 0;
 
+            resolved.forEach(function(item) {
+                calculatedSubtotal += (item.unit_price * item.quantity);
+
+                // Safe fallback check for image_path vs image_url fields
+                const imgTrack = item.Variant && item.Variant.VariantImage 
+                    ? (item.Variant.VariantImage.image_path || item.Variant.VariantImage.image_url) 
+                    : '/uploads/default-shoe.png';
+
+                const isLastItem = (resolved.indexOf(item) === resolved.length - 1);
+                const borderStyle = isLastItem ? '' : 'border-bottom: 1px solid #eee;';
+
+                const itemHtml = `
+                    <div style="display:flex; gap:16px; margin-bottom:16px; ${borderStyle} padding-bottom:16px;">
+                     <img src="${imgTrack}" 
+                            style="width:70px; height:70px; object-fit:contain; background:#f5f5f5; border:1px solid #ddd;" />
+                        <div style="flex:1;">
+                            <h4 style="font-size:13px; font-weight:800; text-transform:uppercase; margin:0 0 4px; color:#ddd;">${item.Variant && item.Variant.Product ? item.Variant.Product.name : 'Adidas Sneaker'}</h4>
+                            <p style="font-size:11px; color:#666; margin:0 0 2px;">Colorway: ${item.Variant && item.Variant.Colorway ? item.Variant.Colorway.name : 'Default'}</p>
+                            <p style="font-size:11px; color:#666; margin:0 0 6px;">Size: US ${item.Variant && item.Variant.ShoeSize ? item.Variant.ShoeSize.us_size : 'N/A'}</p>
+                            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+                                <span style="color:#888;">Qty: ${item.quantity}</span>
+                                <span style="color:#ddd;">₱${(item.unit_price * item.quantity).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                $('#checkout-items').append(itemHtml);
+            });
+
+            // Reconstruct checkoutData structurally so updateTotalsDisplay() functions correctly
             checkoutData = {
-                cartItems: resolved,
-                addresses: addresses,
-                cards: [], // saved cards aren't implemented server-side yet
-                subtotal: subtotal,
-                shipping_fee: shippingFee,
-                discount_rate: DISCOUNT_RATE
+                items: resolved,
+                subtotal: calculatedSubtotal,
+                shipping_fee: calculatedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE
             };
-            discountRate = DISCOUNT_RATE;
+
+            // Recompute calculation metrics and update the display boxes
+            updateTotalsDisplay();
+
+            // Populate the saved addresses block
+            renderSavedAddresses(addresses);
 
             $('#checkout-loading').hide();
             $('#checkout-layout').css('display', 'grid');
-
-            renderOrderSummary(checkoutData);
-            renderSavedAddresses(checkoutData.addresses);
-            renderSavedCards(checkoutData.cards);
+            
         }).fail(function(xhr) {
             $('#checkout-loading').hide();
-            alert((xhr.responseJSON && xhr.responseJSON.message) || 'Could not load checkout.');
+            $('#checkout-empty').show().html(
+                '<p style="color:#c00; font-size: 16px; font-weight: bold;">Failed to load checkout details. Please refresh.</p>'
+            );
         });
     }
 
@@ -77,7 +108,7 @@ $(document).ready(function() {
 
             $items.append(`
                 <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:10px;">
-                    <span>${product.name} (${variant.colorway}, ${variant.size_type} ${variant.size_value}) × ${item.quantity}</span>
+                    <span>${product.name} (${variant.Colorway ? variant.Colorway.name : ''}, ${variant.ShoeSize ? variant.ShoeSize.label : ''}) × ${item.quantity}</span>
                     <span>₱${lineTotal}</span>
                 </div>
             `);

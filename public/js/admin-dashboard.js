@@ -399,8 +399,8 @@ $(document).ready(function () {
                     const product = variant.Product || {};
                     html += `<tr style="border-bottom:1px solid #1a1a1a;">
                         <td style="padding:10px 4px;">${product.name || 'Product'}</td>
-                        <td style="padding:10px 4px; text-align:center;">${variant.size_type || ''} ${variant.size_value || ''}</td>
-                        <td style="padding:10px 4px; text-align:center;">${variant.colorway || '—'}</td>
+                        <td style="padding:10px 4px; text-align:center;">${item.size_type || ''} ${item.size_value || ''}</td>
+                        <td style="padding:10px 4px; text-align:center;">${item.colorway || '—'}</td>
                         <td style="padding:10px 4px; text-align:center;">${item.quantity}</td>
                         <td style="padding:10px 4px; text-align:right;">₱${parseFloat(item.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>`;
@@ -856,13 +856,28 @@ $(document).ready(function () {
         });
     }
 
+    let currentVariantsCache = []; // last variants payload, used to prefill the Edit form
+
     function renderVariantsList(productId, variants) {
         const wrap = $('#variantsListWrapper').empty();
-        
+        currentVariantsCache = variants || [];
+
+        // Which product images are already claimed by a variant (for the "already used" warning)
+        const usedImageMap = new Map(); // image_id -> colorway name
+        currentVariantsCache.forEach(v => {
+            if (v.image_id) usedImageMap.set(v.image_id, v.Colorway ? v.Colorway.name : 'another variant');
+        });
+
         // Refresh the image assignment dropdown based on current product images
+        const editingId = $('#editing_variant_id').val();
+        const editingImageId = editingId ? (currentVariantsCache.find(v => String(v.id) === String(editingId))?.image_id ?? null) : null;
         const imgSel = $('#new_variant_image_id').empty().append('<option value="">No Picture</option>');
         currentProductImages.forEach((img, i) => {
-            imgSel.append(`<option value="${img.id}">Product Image ${i + 1}</option>`);
+            const usedBy = usedImageMap.get(img.id);
+            // Don't warn against the picture the variant being edited already owns
+            const isUsedByOther = usedBy && String(img.id) !== String(editingImageId);
+            const label = isUsedByOther ? `Product Image ${i + 1} — ⚠ already used (${usedBy})` : `Product Image ${i + 1}`;
+            imgSel.append(`<option value="${img.id}">${label}</option>`);
         });
 
         if (!variants || variants.length === 0) {
@@ -890,6 +905,7 @@ $(document).ready(function () {
                     <td style="padding:8px 4px;">${v.Colorway ? v.Colorway.name : '—'}</td>
                     <td style="padding:8px 4px;">${v.ShoeSize ? v.ShoeSize.label : '—'}</td>
                     <td style="padding:8px 4px; text-align:right;">
+                        <button type="button" class="btn btn-dark edit-variant-btn" data-id="${v.id}" style="padding:4px 10px; font-size:10px; color:#9cf; margin-right:6px;">Edit</button>
                         <button type="button" class="btn btn-dark delete-variant-btn" data-id="${v.id}" style="padding:4px 10px; font-size:10px; color:#ff4444;">Delete</button>
                     </td>
                 </tr>`);
@@ -905,23 +921,60 @@ $(document).ready(function () {
         const colorway_id = $('#new_variant_colorway_id').val();
         const size_id = $('#new_variant_size_id').val();
         const image_id = $('#new_variant_image_id').val() || null;
+        const editingId = $('#editing_variant_id').val();
 
         if (!colorway_id || !size_id) { showToast('Colorway and size are required.', 'error'); return; }
 
+        const isEditing = !!editingId;
         $.ajax({
-            url: `/api/products/${productId}/variants`, method: 'POST',
+            url: isEditing ? `/api/variants/${editingId}` : `/api/products/${productId}/variants`,
+            method: isEditing ? 'PUT' : 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ colorway_id, size_id, image_id }),
             headers: { 'Authorization': `Bearer ${token}` },
             success: function () {
-                showToast('Variant added.', 'success');
-                $('#new_variant_image_id').val('');
+                showToast(isEditing ? 'Variant updated.' : 'Variant added.', 'success');
+                resetVariantForm();
                 loadVariantsForProduct(productId);
             },
             error: function (xhr) { 
-                showToast(xhr.responseJSON?.message || 'Could not add variant.', 'error'); 
+                showToast(xhr.responseJSON?.message || (isEditing ? 'Could not update variant.' : 'Could not add variant.'), 'error'); 
             }
         });
+    });
+
+    function resetVariantForm() {
+        $('#editing_variant_id').val('');
+        $('#new_variant_colorway_id').val('');
+        $('#new_variant_size_id').val('');
+        $('#new_variant_image_id').val('');
+        $('#variantFormLabel').text('Add a new variant');
+        $('#addVariantBtn').text('+ Add');
+        $('#cancelVariantEditBtn').hide();
+    }
+
+    $(document).on('click', '.edit-variant-btn', function () {
+        const id = $(this).data('id');
+        const v = currentVariantsCache.find(x => x.id === id);
+        if (!v) return;
+
+        $('#editing_variant_id').val(id);
+        $('#new_variant_colorway_id').val(v.colorway_id || (v.Colorway ? v.Colorway.id : ''));
+        $('#new_variant_size_id').val(v.size_id || (v.ShoeSize ? v.ShoeSize.id : ''));
+        $('#variantFormLabel').text(`Editing variant #${id} — change colorway, size, or picture below`);
+        $('#addVariantBtn').text('Save Changes');
+        $('#cancelVariantEditBtn').show();
+
+        // Re-render the image dropdown so it excludes this variant's own picture from the "already used" warning,
+        // then select its current picture (if any).
+        renderVariantsList($('#product_id_field').val(), currentVariantsCache);
+        $('#new_variant_image_id').val(v.image_id || '');
+
+        $('html, body').animate({ scrollTop: $('#variantsListWrapper').offset().top - 100 }, 200);
+    });
+
+    $(document).on('click', '#cancelVariantEditBtn', function () {
+        resetVariantForm();
     });
 
     $(document).on('click', '.delete-variant-btn', function () {
@@ -931,7 +984,11 @@ $(document).ready(function () {
             $.ajax({
                 url: `/api/variants/${id}`, method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
-                success: function () { showToast('Variant removed.', 'success'); loadVariantsForProduct(productId); }
+                success: function () {
+                    showToast('Variant removed.', 'success');
+                    if (String($('#editing_variant_id').val()) === String(id)) resetVariantForm();
+                    loadVariantsForProduct(productId);
+                }
             });
         });
     });
@@ -1077,6 +1134,7 @@ $(document).ready(function () {
         $('#announcementCrudForm')[0].reset();
         $('#product_id_field, #category_id_field, #announcement_id_field').val('');
         $('#prod_image_preview, #prod_existing_images, #variantsListWrapper').empty();
+        resetVariantForm();
         $('#productCrudTabs').hide();
         currentProductImages = [];
         imagesMarkedForRemoval = [];

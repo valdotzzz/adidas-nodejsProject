@@ -71,8 +71,8 @@ $(document).ready(function() {
                                 <div>
                                     <div class="cart-row__name">${product.name}</div>
                                     <div class="cart-row__meta">
-                                        ${variant.colorway}<br>
-                                        Size: ${variant.size_type} ${variant.size_value}
+                                        ${variant.Colorway ? variant.Colorway.name : ''}<br>
+                                        Size: ${variant.ShoeSize ? variant.ShoeSize.label : ''}
                                     </div>
                                     ${lowStock ? `<div class="cart-row__stock-warning">Low in stock</div>` : ''}
                                 </div>

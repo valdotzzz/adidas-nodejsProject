@@ -41,7 +41,7 @@ function orderConfirmationTemplate(order) {
         <div class="product-row">
             <div>
                 <div class="product-name">${product.name || 'Product'}</div>
-                <div class="product-qty">${variant.colorway || ''} · Size ${variant.size_type || ''} ${variant.size_value || ''} · Qty: ${item.quantity}</div>
+                <div class="product-qty">${item.colorway || ''} · Size ${item.size_type || ''} ${item.size_value || ''} · Qty: ${item.quantity}</div>
             </div>
             <div class="product-price">₱${lineTotal}</div>
         </div>`;

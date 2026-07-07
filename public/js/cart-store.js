@@ -63,8 +63,6 @@ const CartStore = (function () {
         return read().reduce((sum, i) => sum + i.quantity, 0);
     }
 
-    // Hits the one remaining server route to hydrate the stored variant_ids
-    // with live product/price/stock data. Returns a jQuery promise.
     function resolve(token) {
         const items = read();
         if (items.length === 0) {
@@ -76,6 +74,13 @@ const CartStore = (function () {
             contentType: 'application/json',
             headers: { 'Authorization': 'Bearer ' + token },
             data: JSON.stringify({ items })
+        }).then(function (response) {
+            const staleIds = (response && response.stale_variant_ids) || [];
+            if (staleIds.length > 0) {
+                const remaining = read().filter(i => !staleIds.includes(i.variant_id));
+                write(remaining);
+            }
+            return (response && response.items) || [];
         });
     }
 

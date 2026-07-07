@@ -295,7 +295,7 @@ function renderMiniCart(cartItems) {
                 </div>
                 <div class="mini-cart-item__info">
                     <div class="mini-cart-item__name">${product.name || 'Product'}</div>
-                    <div class="mini-cart-item__meta">${variant.colorway || ''} · ${variant.size_type || ''} ${variant.size_value || ''}</div>
+                    <div class="mini-cart-item__meta">${variant.Colorway ? variant.Colorway.name : ''} · ${variant.ShoeSize ? variant.ShoeSize.label : ''}</div>
                     <div class="mini-cart-item__price">₱${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} <span class="mini-cart-item__qty">× ${item.quantity}</span></div>
                 </div>
             </div>
@@ -420,4 +420,3 @@ function renderMiniNotifications(notifications) {
 
     updateNotifBadge();
 }
-

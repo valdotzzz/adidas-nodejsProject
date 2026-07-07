@@ -1,4 +1,4 @@
-const { Variant, Product, Category, ProductImage } = require('../models');
+const { Variant, Product, Category, ProductImage, Colorway, ShoeSize } = require('../models');
 
 function effectivePrice(product) {
     const price = parseFloat(product.price);
@@ -10,12 +10,6 @@ function effectivePrice(product) {
 
 // POST /api/cart/resolve
 // Body: { items: [{ variant_id, quantity }, ...] }
-//
-// The cart itself lives in the browser (localStorage) now -- there is no
-// cart_items table anymore. This endpoint just hydrates whatever the
-// browser is holding with live price/stock/product data so the DB is
-// never written to on every add/remove/quantity change. Nothing here
-// gets persisted.
 exports.resolveCart = async (req, res) => {
     try {
         const items = Array.isArray(req.body.items) ? req.body.items : [];
@@ -23,34 +17,49 @@ exports.resolveCart = async (req, res) => {
             return res.status(200).json([]);
         }
 
-        const variantIds = [...new Set(
-            items.map(i => parseInt(i.variant_id, 10)).filter(id => Number.isInteger(id))
-        )];
+        // Merge duplicate variant_id entries (e.g. leftover/duplicated localStorage
+        // rows) into a single line by summing quantity, instead of creating
+        // separate lines for the same exact variant.
+        const mergedQty = new Map(); // variant_id -> summed quantity
+        for (const item of items) {
+            const vid = parseInt(item.variant_id, 10);
+            if (!Number.isInteger(vid)) continue;
+            const qty = parseInt(item.quantity, 10) || 1;
+            mergedQty.set(vid, (mergedQty.get(vid) || 0) + qty);
+        }
+
+        const variantIds = [...mergedQty.keys()];
 
         const variants = await Variant.findAll({
             where: { id: variantIds },
-            include: [{ model: Product, include: [Category, ProductImage] }]
+            include: [
+                { model: Product, include: [Category, ProductImage] },
+                Colorway,
+                ShoeSize,
+                { model: ProductImage, as: 'VariantImage' }
+            ]
         });
         const variantMap = new Map(variants.map(v => [v.id, v]));
 
-        const resolved = items
-            .map(item => {
-                const variant = variantMap.get(parseInt(item.variant_id, 10));
-                if (!variant || !variant.Product) return null; // stale/deleted -- dropped silently
+        const resolved = [];
+        const staleVariantIds = []; // couldn't be found -- product/variant deleted or from before the size/colorway migration
+        for (const [variantId, requestedQty] of mergedQty.entries()) {
+            const variant = variantMap.get(variantId);
+            if (!variant || !variant.Product) {
+                staleVariantIds.push(variantId);
+                continue;
+            }
 
-                const requestedQty = parseInt(item.quantity, 10) || 1;
-                const quantity = Math.max(1, Math.min(requestedQty, variant.stock_level || 1));
+            const quantity = Math.max(1, Math.min(requestedQty, variant.stock_level || 1));
+            resolved.push({
+                variant_id: variant.id,
+                quantity,
+                unit_price: effectivePrice(variant.Product),
+                Variant: variant
+            });
+        }
 
-                return {
-                    variant_id: variant.id,
-                    quantity,
-                    unit_price: effectivePrice(variant.Product),
-                    Variant: variant
-                };
-            })
-            .filter(Boolean);
-
-        return res.status(200).json(resolved);
+        return res.status(200).json({ items: resolved, stale_variant_ids: staleVariantIds });
     } catch (error) {
         return res.status(500).json({ message: 'Server error resolving cart.', error: error.message });
     }
