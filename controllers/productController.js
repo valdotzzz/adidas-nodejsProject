@@ -231,7 +231,14 @@ exports.getProductById = async (req, res) => {
             include: [
                 { model: db.Category },
                 { model: db.ProductImage },
-                { model: db.Variant }
+                { 
+                    model: db.Variant,
+                    include: [
+                        { model: db.Colorway },
+                        { model: db.ShoeSize },
+                        { model: db.ProductImage, as: 'VariantImage' }
+                    ]
+                }
             ]
         });
 
@@ -242,6 +249,6 @@ exports.getProductById = async (req, res) => {
         res.json(product);
     } catch (error) {
         console.error('Error fetching product details:', error);
-        res.status(500).json({ message: 'Internal server error during relationship evaluation.' });
+        res.status(500).json({ message: 'Internal server error during relationship evaluation.', error: error.message });
     }
 };

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body class="admin-body">
@@ -458,29 +459,23 @@
             </form>
 
             <div id="productVariantsTab" style="display:none;">
-                <div style="color:#777; font-size:12px; margin-bottom:14px;">Save the product first (Details tab) before adding variants.</div>
+                <div style="color:#777; font-size:12px; margin-bottom:14px;">Save the product first before adding variants. Stock tracking is handled separately in the Stock Manager tab.</div>
                 <div id="variantsListWrapper" style="margin-bottom:20px;"></div>
                 <div style="border-top:1px solid #222; padding-top:16px;">
-                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; align-items:end;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:end;">
                         <div class="form-group" style="margin:0;">
                             <label style="font-size:11px;">Colorway</label>
-                            <input type="text" id="new_variant_colorway" placeholder="e.g. Core Black">
+                            <select id="new_variant_colorway_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;"></select>
                         </div>
                         <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Size Type</label>
-                            <select id="new_variant_size_type" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;">
-                                <option value="US">US</option>
-                                <option value="UK">UK</option>
-                                <option value="EU">EU</option>
+                            <label style="font-size:11px;">Size</label>
+                            <select id="new_variant_size_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;"></select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px;">Assign Picture (Optional)</label>
+                            <select id="new_variant_image_id" class="form-select-control" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff;">
+                                <option value="">No Picture</option>
                             </select>
-                        </div>
-                        <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Size Value</label>
-                            <input type="number" step="0.5" id="new_variant_size_value" placeholder="9.5">
-                        </div>
-                        <div class="form-group" style="margin:0;">
-                            <label style="font-size:11px;">Stock</label>
-                            <input type="number" id="new_variant_stock" placeholder="0" value="0">
                         </div>
                         <button type="button" class="btn btn-primary" id="addVariantBtn" style="padding:12px 16px; font-size:12px;">+ Add</button>
                     </div>

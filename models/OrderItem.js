@@ -7,7 +7,7 @@ const OrderItem = sequelize.define('OrderItem', {
         autoIncrement: true,
         primaryKey: true
     },
-    // Snapshot fields — justified denormalization, same reasoning as the Laravel version:
+    // Snapshot fields — justified denormalization:
     // if the product/price/name changes later, past receipts must stay frozen in time.
     product_name: {
         type: DataTypes.STRING,

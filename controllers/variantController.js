@@ -20,22 +20,31 @@ exports.getVariantsForProduct = async (req, res) => {
 };
 
 // POST /api/products/:productId/variants
-// Body: { colorway_id, size_id, stock_level, image_id? }
 exports.createVariant = async (req, res) => {
     try {
         const product = await Product.findByPk(req.params.productId);
         if (!product) return res.status(404).json({ message: 'Product not found.' });
 
-        const { colorway_id, size_id, stock_level, image_id } = req.body;
+        const { colorway_id, size_id, image_id } = req.body;
         if (!colorway_id || !size_id) {
             return res.status(422).json({ message: 'colorway_id and size_id are required.' });
+        }
+
+        // Validate unique image assignment per product
+        if (image_id) {
+            const existingVariant = await Variant.findOne({ 
+                where: { product_id: product.id, image_id } 
+            });
+            if (existingVariant) {
+                return res.status(409).json({ message: 'Warning: This picture is already assigned to another variant. Please choose a different one or leave it blank.' });
+            }
         }
 
         const variant = await Variant.create({
             product_id: product.id,
             colorway_id,
             size_id,
-            stock_level: stock_level || 0,
+            stock_level: 0, // Default to 0, managed in Stock tab
             image_id: image_id || null
         });
 
@@ -47,18 +56,26 @@ exports.createVariant = async (req, res) => {
 };
 
 // PUT /api/variants/:id
-// Body: { colorway_id?, size_id?, stock_level?, image_id? }
 exports.updateVariant = async (req, res) => {
     try {
         const variant = await Variant.findByPk(req.params.id);
         if (!variant) return res.status(404).json({ message: 'Variant not found.' });
 
-        const { colorway_id, size_id, stock_level, image_id } = req.body;
+        const { colorway_id, size_id, image_id } = req.body;
+        
+        if (image_id && image_id !== variant.image_id) {
+            const existingVariant = await Variant.findOne({ 
+                where: { product_id: variant.product_id, image_id } 
+            });
+            if (existingVariant) {
+                return res.status(409).json({ message: 'Warning: This picture is already assigned to another variant.' });
+            }
+        }
+
         await variant.update({
             colorway_id: colorway_id ?? variant.colorway_id,
             size_id:     size_id     ?? variant.size_id,
-            stock_level: stock_level ?? variant.stock_level,
-            image_id:    image_id !== undefined ? image_id : variant.image_id
+            image_id:    image_id !== undefined ? (image_id || null) : variant.image_id
         });
 
         const full = await Variant.findByPk(variant.id, withLookups);

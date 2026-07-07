@@ -8,6 +8,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="js/cart-store.js"></script>
     <script src="js/layout.js"></script>
+    <script src="js/search-autocomplete.js"></script>
 </head>
 <body>
 
@@ -32,14 +33,18 @@
                <div class="form-group" style="margin-bottom: 32px;">
                     <label style="margin-bottom: 12px;">Available Options / Style Code: <span id="detail-style-code" style="color:#fff;"></span></label>
                     <div style="display:flex; align-items:center; gap:8px; margin:12px 0 4px;">
-    <span style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:1px;">Size Format:</span>
-    <button type="button" class="size-unit-btn" data-unit="US" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">US</button>
-    <button type="button" class="size-unit-btn" data-unit="UK" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">UK</button>
-    <button type="button" class="size-unit-btn" data-unit="EU" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">EU</button>
-</div>
-                    <div id="variant-container" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
-                        </div>
-                    <div class="field-error" id="variant-error" style="margin-top: 12px;">Please select an option before proceeding.</div>
+                    <span style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:1px;">Size Format:</span>
+                    <button type="button" class="size-unit-btn" data-unit="US" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">US</button>
+                    <button type="button" class="size-unit-btn" data-unit="UK" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">UK</button>
+                    <button type="button" class="size-unit-btn" data-unit="EU" style="padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer;">EU</button>
+                </div>
+                    <label style="margin-bottom: 12px; display:block;">Select Colorway</label>
+                    <div id="colorway-container" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;"></div>
+
+                    <label style="margin-bottom: 12px; display:block;">Select Size</label>
+                    <div id="variant-container" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;"></div>
+
+                    <div class="field-error" id="variant-error" style="margin-top: 12px; display:none; color:#ff4444;">Please select a size option before proceeding.</div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 32px;">

@@ -825,8 +825,18 @@ $(document).ready(function () {
     });
 
     /* =================================================================
-       PRODUCT VARIANTS TAB
+       PRODUCT VARIANTS TAB (DECOUPLED FROM STOCK)
     ================================================================= */
+    // Boot Initialization: Fetch lookup tables immediately
+    $.get('/api/colorways', data => {
+        const sel = $('#new_variant_colorway_id').empty();
+        data.forEach(c => sel.append(`<option value="${c.id}">${c.name}</option>`));
+    });
+    $.get('/api/shoe-sizes', data => {
+        const sel = $('#new_variant_size_id').empty();
+        data.forEach(s => sel.append(`<option value="${s.id}">${s.label} (US ${s.us_size})</option>`));
+    });
+
     $(document).on('click', '.product-tab-btn', function () {
         showProductTab($(this).data('tab'));
     });
@@ -848,26 +858,38 @@ $(document).ready(function () {
 
     function renderVariantsList(productId, variants) {
         const wrap = $('#variantsListWrapper').empty();
+        
+        // Refresh the image assignment dropdown based on current product images
+        const imgSel = $('#new_variant_image_id').empty().append('<option value="">No Picture</option>');
+        currentProductImages.forEach((img, i) => {
+            imgSel.append(`<option value="${img.id}">Product Image ${i + 1}</option>`);
+        });
+
         if (!variants || variants.length === 0) {
-            wrap.append('<div style="color:#777; font-size:12px;">No variants yet — add sizes and colorways below.</div>');
+            wrap.append('<div style="color:#777; font-size:12px;">No variants mapped yet.</div>');
             return;
         }
+
         const table = $(`<table style="width:100%; border-collapse:collapse; font-size:12px; color:#ccc;">
             <thead><tr style="border-bottom:1px solid #333; text-align:left;">
-                <th style="padding:8px 4px;">Colorway</th><th style="padding:8px 4px;">Size</th>
-                <th style="padding:8px 4px;">Stock</th><th style="padding:8px 4px;"></th>
+                <th style="padding:8px 4px;">Picture</th>
+                <th style="padding:8px 4px;">Colorway</th>
+                <th style="padding:8px 4px;">Size</th>
+                <th style="padding:8px 4px; text-align:right;">Actions</th>
             </tr></thead><tbody></tbody></table>`);
+            
         const tbody = table.find('tbody');
         variants.forEach(v => {
+            const hasImage = v.VariantImage 
+                ? `<img src="${v.VariantImage.image_path}" style="width:28px; height:28px; object-fit:cover; border-radius:2px;">` 
+                : '<span style="color:#555;">None</span>';
+                
             tbody.append(`
                 <tr style="border-bottom:1px solid #1a1a1a;" data-variant-id="${v.id}">
-                    <td style="padding:8px 4px;">${v.colorway}</td>
-                    <td style="padding:8px 4px;">${v.size_type} ${v.size_value}</td>
-                    <td style="padding:8px 4px;">
-                        <input type="number" class="variant-stock-input" data-id="${v.id}" value="${v.stock_level}" style="width:60px; padding:4px; background:#1a1a1a; border:1px solid #333; color:#fff;">
-                    </td>
+                    <td style="padding:8px 4px;">${hasImage}</td>
+                    <td style="padding:8px 4px;">${v.Colorway ? v.Colorway.name : '—'}</td>
+                    <td style="padding:8px 4px;">${v.ShoeSize ? v.ShoeSize.label : '—'}</td>
                     <td style="padding:8px 4px; text-align:right;">
-                        <button type="button" class="btn btn-dark save-variant-stock" data-id="${v.id}" style="padding:4px 10px; font-size:10px;">Save</button>
                         <button type="button" class="btn btn-dark delete-variant-btn" data-id="${v.id}" style="padding:4px 10px; font-size:10px; color:#ff4444;">Delete</button>
                     </td>
                 </tr>`);
@@ -878,52 +900,38 @@ $(document).ready(function () {
 
     $(document).on('click', '#addVariantBtn', function () {
         const productId = $('#product_id_field').val();
-        if (!productId) { showToast('Save the product first.', 'error'); return; }
+        if (!productId) { showToast('Save the product details first.', 'error'); return; }
 
-        const colorway = $('#new_variant_colorway').val().trim();
-        const size_type = $('#new_variant_size_type').val();
-        const size_value = $('#new_variant_size_value').val();
-        const stock_level = $('#new_variant_stock').val() || 0;
+        const colorway_id = $('#new_variant_colorway_id').val();
+        const size_id = $('#new_variant_size_id').val();
+        const image_id = $('#new_variant_image_id').val() || null;
 
-        if (!colorway || !size_value) { showToast('Colorway and size are required.', 'error'); return; }
+        if (!colorway_id || !size_id) { showToast('Colorway and size are required.', 'error'); return; }
 
         $.ajax({
             url: `/api/products/${productId}/variants`, method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ colorway, size_type, size_value, stock_level }),
+            data: JSON.stringify({ colorway_id, size_id, image_id }),
             headers: { 'Authorization': `Bearer ${token}` },
             success: function () {
                 showToast('Variant added.', 'success');
-                $('#new_variant_colorway, #new_variant_size_value').val('');
-                $('#new_variant_stock').val(0);
+                $('#new_variant_image_id').val('');
                 loadVariantsForProduct(productId);
             },
-            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not add variant.', 'error'); }
-        });
-    });
-
-    $(document).on('click', '.save-variant-stock', function () {
-        const id = $(this).data('id');
-        const stock_level = $(`.variant-stock-input[data-id="${id}"]`).val();
-        const productId = $('#product_id_field').val();
-        $.ajax({
-            url: `/api/variants/${id}`, method: 'PUT',
-            contentType: 'application/json', data: JSON.stringify({ stock_level }),
-            headers: { 'Authorization': `Bearer ${token}` },
-            success: function () { showToast('Variant updated.', 'success'); loadVariantsForProduct(productId); },
-            error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not update variant.', 'error'); }
+            error: function (xhr) { 
+                showToast(xhr.responseJSON?.message || 'Could not add variant.', 'error'); 
+            }
         });
     });
 
     $(document).on('click', '.delete-variant-btn', function () {
         const id = $(this).data('id');
         const productId = $('#product_id_field').val();
-        showConfirm('Remove this variant? Any stock tracking for it will be lost.', function () {
+        showConfirm('Remove this variant? All stock logic mapped to it will be permanently deleted.', function () {
             $.ajax({
                 url: `/api/variants/${id}`, method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
-                success: function () { showToast('Variant removed.', 'success'); loadVariantsForProduct(productId); },
-                error: function (xhr) { showToast(xhr.responseJSON?.message || 'Could not delete variant.', 'error'); }
+                success: function () { showToast('Variant removed.', 'success'); loadVariantsForProduct(productId); }
             });
         });
     });

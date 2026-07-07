@@ -58,6 +58,19 @@ $(document).ready(function() {
         $('#detail-image').attr('src', newSrc);
         $('.detail-thumb').css('border-color', '#333').removeClass('detail-thumb--active');
         $(this).css('border-color', '#fff').addClass('detail-thumb--active');
+
+        // Check if the clicked image matches any assigned Variant image and auto-switch the Colorway tab
+        if (currentProduct && currentProduct.Variants) {
+            const matchedVariant = currentProduct.Variants.find(v => v.VariantImage && resolveImagePath(v.VariantImage.image_path) === newSrc);
+            if (matchedVariant && matchedVariant.Colorway) {
+                if (selectedColorwayId !== matchedVariant.Colorway.id) {
+                    selectedColorwayId = matchedVariant.Colorway.id;
+                    selectedVariantId = null;
+                    renderColorways();
+                    renderVariantButtons();
+                }
+            }
+        }
     });
 
     function getSizeChart(gender) {
@@ -75,6 +88,8 @@ $(document).ready(function() {
         return currentSizeUnit === 'UK' ? `UK ${entry.uk}` : `EU ${entry.eu}`;
     }
 
+    let selectedColorwayId = null;
+
     function updateSizeUnitButtonUI() {
         $('.size-unit-btn').each(function() {
             const isActive = $(this).data('unit') === currentSizeUnit;
@@ -91,45 +106,112 @@ $(document).ready(function() {
         currentSizeUnit = $(this).data('unit');
         localStorage.setItem('preferredSizeUnit', currentSizeUnit);
         updateSizeUnitButtonUI();
-        renderVariantButtons(); // redraw the existing variant buttons in the new unit
+        renderVariantButtons(); 
     });
 
+    // 1. Render Unique Colorways
+    function renderColorways() {
+        const cwContainer = $('#colorway-container').empty();
+        if (!currentProduct || !currentProduct.Variants) return;
+
+        const uniqueCw = [];
+        const cwMap = new Map();
+        
+        currentProduct.Variants.forEach(v => {
+            if (v.Colorway && !cwMap.has(v.Colorway.id)) {
+                cwMap.set(v.Colorway.id, true);
+                uniqueCw.push({ ...v.Colorway, image: v.VariantImage });
+            }
+        });
+
+        if (!selectedColorwayId && uniqueCw.length > 0) {
+            selectedColorwayId = uniqueCw[0].id; // Auto-select first colorway
+        }
+
+        uniqueCw.forEach(cw => {
+            const isActive = cw.id === selectedColorwayId;
+            const content = cw.image 
+                ? `<img src="${resolveImagePath(cw.image.image_path)}" style="width:28px; height:28px; object-fit:cover; border-radius:2px;">` 
+                : `<span style="font-weight:700;">${cw.name}</span>`;
+                
+            cwContainer.append(`
+                <button class="btn cw-opt-btn" data-id="${cw.id}" data-img="${cw.image ? cw.image.image_path : ''}" 
+                    style="padding: 6px 14px; font-size: 12px; display:flex; align-items:center; gap:8px; 
+                           border: 1px solid ${isActive ? '#fff' : '#333'}; 
+                           background: ${isActive ? '#fff' : '#111'}; 
+                           color: ${isActive ? '#000' : '#fff'}; cursor:pointer;">
+                    ${content} ${cw.image ? cw.name : ''}
+                </button>
+            `);
+        });
+    }
+
+    $(document).on('click', '.cw-opt-btn', function() {
+        selectedColorwayId = $(this).data('id');
+        selectedVariantId = null; // Clear size selection when changing colors
+        renderColorways();
+        renderVariantButtons();
+        
+        // Linkage: Change main image if the variant has a picture attached
+        const imgPath = $(this).data('img');
+        if (imgPath) {
+            $('#detail-image').attr('src', resolveImagePath(imgPath));
+            $('.detail-thumb').css('border-color', '#333').removeClass('detail-thumb--active');
+            $(`.detail-thumb[data-src="${resolveImagePath(imgPath)}"]`).css('border-color', '#fff').addClass('detail-thumb--active');
+        }
+    });
+
+    // 2. Render Sizes tied to the Selected Colorway (With Fade-In)
     function renderVariantButtons() {
         if (!currentProduct) return;
-
+        
         const variantContainer = $('#variant-container');
-        variantContainer.empty();
+        variantContainer.hide().empty(); // Hide container immediately for fade-in effect
 
-        const variants = currentProduct.Variants || currentProduct.variants;
+        const variants = currentProduct.Variants || [];
+        const filteredVariants = variants.filter(v => v.Colorway && v.Colorway.id === selectedColorwayId);
 
-        if (variants && variants.length > 0) {
-            variants.forEach(variant => {
-                const sizeLabel = formatSizeLabel(variant.size_value, currentProduct.gender);
+        if (filteredVariants.length > 0) {
+            filteredVariants.forEach(variant => {
+                const usSize = variant.ShoeSize ? variant.ShoeSize.us_size : variant.size_value;
+                const sizeLabel = formatSizeLabel(usSize, currentProduct.gender);
+                const isOutOfStock = variant.stock_level <= 0;
+                
                 const optionBtn = $(`
-                    <button class="btn btn-dark variant-opt-btn" data-id="${variant.id}" style="padding: 10px 20px; font-size: 12px;">
-                        ${sizeLabel} (${variant.stock_level} left)
+                    <button class="btn variant-opt-btn" data-id="${variant.id}" 
+                            style="padding: 10px 20px; font-size: 12px; border: 1px solid #444; background: #111; color: #fff; cursor:pointer; transition: all 0.2s;">
+                        ${sizeLabel} ${isOutOfStock ? '(No Stock)' : ''}
                     </button>
                 `);
 
-                if (variant.stock_level <= 0) {
-                    optionBtn.prop('disabled', true).css({ 'opacity': '0.3', 'cursor': 'not-allowed' });
+                if (isOutOfStock) {
+                    optionBtn.prop('disabled', true).css({ 'opacity': '0.3', 'cursor': 'not-allowed', 'background': '#000' });
                 }
 
-                // Re-apply active highlight if this variant was already selected before the unit switch
                 if (selectedVariantId && variant.id === selectedVariantId) {
-                    optionBtn.removeClass('btn-dark').addClass('btn-primary');
+                    optionBtn.css({ 'border-color': '#fff', 'background': '#fff', 'color': '#000' });
                 }
 
                 variantContainer.append(optionBtn);
             });
         } else {
-            variantContainer.html('<p style="font-size:12px; color:#555;">Standard One-Size Fit Only (No variants linked)</p>');
+            variantContainer.html('<p style="font-size:12px; color:#555;">No sizes mapped to this colorway yet.</p>');
         }
+
+        variantContainer.fadeIn(300); // Execute fade-in animation
     }
-    if (!productId) {
-        console.error("Missing product ID parameter inside URL query string.");
-        return;
-    }
+
+    // 3. Handle Interactive Button Selection Choice Toggles (Fixed Cart Logic)
+    $(document).on('click', '.variant-opt-btn', function() {
+        // Reset all buttons to default dark styling
+        $('.variant-opt-btn').css({ 'border-color': '#444', 'background': '#111', 'color': '#fff' });
+        
+        // Highlight selected button
+        $(this).css({ 'border-color': '#fff', 'background': '#fff', 'color': '#000' });
+        
+        selectedVariantId = $(this).data('id'); // Save ID for CartStore
+        $('#variant-error').hide();
+    });
 
     // ===================== REVIEWS =====================
     const token = localStorage.getItem('token');
@@ -460,6 +542,7 @@ $(document).ready(function() {
             // 2. Map Related Inventory Variants — rendering now handled by renderVariantButtons()
             // so it can be re-run whenever the size unit toggle changes
             currentProduct = product;
+            renderColorways();
             renderVariantButtons();
 
             if (token) {
@@ -486,14 +569,6 @@ $(document).ready(function() {
             $('#detail-name').text('Failed to load item components');
             $('#detail-desc').text('The application server encountered an association or routing fault. Check terminal logs for details.');
         }
-    });
-
-    // 3. Handle Interactive Button Selection Choice Toggles
-    $(document).on('click', '.variant-opt-btn', function() {
-        $('.variant-opt-btn').removeClass('btn-primary').addClass('btn-dark');
-        $(this).removeClass('btn-dark').addClass('btn-primary');
-        selectedVariantId = $(this).data('id');
-        $('#variant-error').hide();
     });
 
     // 4. Quantity Stepper
