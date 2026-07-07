@@ -12,6 +12,10 @@ const Order = sequelize.define('Order', {
     discount_id_number: { type: DataTypes.STRING, allowNull: true },
     discount_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
 
+    // Discount code applied at checkout (mutually exclusive with pwd/senior)
+    discount_code_id: { type: DataTypes.INTEGER, allowNull: true },
+    discount_code_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
+
     status: { type: DataTypes.ENUM('pending', 'processing', 'shipped', 'completed', 'cancelled', 'refunded'), defaultValue: 'pending' },
     payment_method: { type: DataTypes.STRING, defaultValue: 'cod' }
 

@@ -8,7 +8,10 @@ const upload = require('../middlewares/upload');
 // Public (optionalProtect lets admin/staff see hidden products too)
 router.get('/', optionalProtect, productController.getAllProducts);
 
-// Admin/Staff — soft-delete management (must come before '/:id' so 'trash' isn't parsed as an id)
+// Admin/Staff — bulk campaign management
+router.patch('/bulk-sale', protect, authorize('admin', 'staff'), auditLog('admin', 'Bulk discount management configuration applied'), productController.bulkSale);
+
+// Admin/Staff — soft-delete management (must come after special matching endpoints so static paths aren't evaluated as IDs)
 router.get('/trash/list', protect, authorize('admin', 'staff'), productController.getDeletedProducts);
 router.patch('/:id/restore', protect, authorize('admin', 'staff'), auditLog('admin', 'Restored product'), productController.restoreProduct);
 

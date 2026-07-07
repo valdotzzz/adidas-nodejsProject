@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Variant, Product, ProductImage, Order, OrderItem, Address, User, Colorway, ShoeSize } = db;
+const { Variant, Product, ProductImage, Order, OrderItem, Address, User, Colorway, ShoeSize, DiscountCode, DiscountRedemption } = db;
 const { sendOrderConfirmationEmail } = require('../utils/sendOrderEmail');
 
 const DISCOUNT_RATE = 0.20; // RA 9994 / RA 10754 -- PWD & Senior Citizen
@@ -20,7 +20,9 @@ function effectivePrice(product) {
 async function recalculateOrderTotal(order, transaction) {
     const items = await OrderItem.findAll({ where: { order_id: order.id }, transaction });
     const itemsTotal = items.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0);
-    const total = itemsTotal - parseFloat(order.discount_amount) + parseFloat(order.shipping_fee);
+    
+    // Updated to subtract both manual ID discounts and applied coupon code value
+    const total = itemsTotal - parseFloat(order.discount_amount) - parseFloat(order.discount_code_amount) + parseFloat(order.shipping_fee);
 
     order.total_amount = Math.max(total, 0).toFixed(2);
     await order.save({ transaction });
@@ -113,7 +115,7 @@ async function resolveOrderAddress(req, transaction) {
 
 // POST /api/checkout -- place the order
 // Body: { items: [{variant_id, quantity}], address_id? | (full_name, phone, address_line, city, province, postal_code, save_address),
-//         discount_type?, discount_id_number?, payment_method? }
+//         discount_type?, discount_id_number?, discount_code?, payment_method? }
 exports.placeOrder = async (req, res) => {
     const t = await db.sequelize.transaction();
 
@@ -126,10 +128,55 @@ exports.placeOrder = async (req, res) => {
             throw { status: 422, message: 'Please provide a PWD / Senior Citizen ID number.' };
         }
 
+        // Mutual exclusivity rule evaluation
+        if (discountType !== 'none' && req.body.discount_code) {
+            throw { status: 422, message: 'Promo codes cannot be combined with PWD or Senior Citizen discounts.' };
+        }
+
         const subtotal = cartLines.reduce((sum, l) => sum + l.price * l.quantity, 0);
-        const discountAmount = discountType !== 'none' ? Math.round(subtotal * DISCOUNT_RATE * 100) / 100 : 0;
+        let discountAmount = discountType !== 'none' ? Math.round(subtotal * DISCOUNT_RATE * 100) / 100 : 0;
+        
+        // Server-side discount code matching & evaluation
+        let discountCodeId = null;
+        let discountCodeAmount = 0;
+        let discountCodeInstance = null;
+
+        if (req.body.discount_code && req.body.discount_code.trim()) {
+            const cleanCode = req.body.discount_code.trim();
+            discountCodeInstance = await DiscountCode.findOne({
+                where: { code: cleanCode },
+                transaction: t
+            });
+
+            if (!discountCodeInstance) {
+                throw { status: 422, message: 'Invalid discount code.' };
+            }
+            if (!discountCodeInstance.active) {
+                throw { status: 422, message: 'This discount code is no longer active.' };
+            }
+            if (discountCodeInstance.expires_at && new Date(discountCodeInstance.expires_at) < new Date()) {
+                throw { status: 422, message: 'This discount code has expired.' };
+            }
+            if (discountCodeInstance.max_uses !== null && discountCodeInstance.times_used >= discountCodeInstance.max_uses) {
+                throw { status: 422, message: 'This discount code has reached its maximum usage limit.' };
+            }
+
+            // Enforce one redemption per user constraint
+            const alreadyRedeemed = await DiscountRedemption.findOne({
+                where: { code_id: discountCodeInstance.id, user_id: req.user.id },
+                transaction: t
+            });
+            if (alreadyRedeemed) {
+                throw { status: 422, message: 'You have already redeemed this discount code.' };
+            }
+
+            discountCodeId = discountCodeInstance.id;
+            const pctOff = parseFloat(discountCodeInstance.percent_off) || 0;
+            discountCodeAmount = Math.round(subtotal * (pctOff / 100) * 100) / 100;
+        }
+
         const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
-        const provisionalTotal = Math.max(subtotal - discountAmount, 0) + shippingFee;
+        const provisionalTotal = Math.max(subtotal - discountAmount - discountCodeAmount, 0) + shippingFee;
 
         const order = await Order.create({
             user_id: req.user.id,
@@ -139,8 +186,10 @@ exports.placeOrder = async (req, res) => {
             discount_type: discountType,
             discount_id_number: discountType !== 'none' ? req.body.discount_id_number : null,
             discount_amount: discountAmount,
+            discount_code_id: discountCodeId,
+            discount_code_amount: discountCodeAmount,
             shipping_fee: shippingFee,
-            total_amount: provisionalTotal // placeholder; recalculated below from order_items
+            total_amount: provisionalTotal // placeholder; re-derived below
         }, { transaction: t });
 
         for (const line of cartLines) {
@@ -159,9 +208,17 @@ exports.placeOrder = async (req, res) => {
             await line.variant.decrement('stock_level', { by: line.quantity, transaction: t });
         }
 
-        // Single source of truth: total_amount is now derived purely from
-        // the order_items rows that were actually persisted, not from the
-        // pre-insert calculation above.
+        // Commit redemption milestones if a code was passed
+        if (discountCodeInstance) {
+            await discountCodeInstance.increment('times_used', { by: 1, transaction: t });
+            await DiscountRedemption.create({
+                code_id: discountCodeInstance.id,
+                user_id: req.user.id,
+                order_id: order.id
+            }, { transaction: t });
+        }
+
+        // Single source of truth calibration
         await recalculateOrderTotal(order, t);
 
         await t.commit();

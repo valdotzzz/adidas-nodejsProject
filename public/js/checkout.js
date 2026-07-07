@@ -150,8 +150,12 @@ $(document).ready(function() {
     // Toggle the ID-number field whenever the discount selection changes
     $(document).on('change', 'input[name="discount_type"]', function() {
         const type = $(this).val();
-        $('#discount-id-wrapper').toggleClass('is-visible', type === 'pwd' || type === 'senior');
-        if (type === 'none') $('#discount_id_number').val('');
+        $('#discount-id-wrapper').toggle(type === 'pwd' || type === 'senior');
+        $('#promo-code-wrapper').toggle(type === 'promo');
+        
+        if (type !== 'pwd' && type !== 'senior') $('#discount_id_number').val('');
+        if (type !== 'promo') $('#discount_code').val('');
+        
         updateTotalsDisplay();
     });
 
@@ -289,8 +293,9 @@ $(document).ready(function() {
             postal_code: $('#postal_code').val().trim(),
             payment_method: paymentMethod,
             save_address: $('#save_address').is(':checked'),
-            discount_type: discountType,
-            discount_id_number: $('#discount_id_number').val().trim()
+            discount_type: (discountType === 'pwd' || discountType === 'senior') ? discountType : 'none',
+            discount_id_number: $('#discount_id_number').val().trim(),
+            discount_code: discountType === 'promo' ? $('#discount_code').val().trim() : null
         };
 
         if (!payload.full_name || !payload.phone || !payload.address_line || !payload.city) {

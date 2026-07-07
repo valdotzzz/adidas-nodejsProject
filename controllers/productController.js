@@ -125,9 +125,18 @@ exports.updateProduct = async (req, res) => {
         // the Product row itself.
         const { image_urls, remove_image_ids, ...productFields } = req.body;
 
-        // FormData sends an empty string when the admin clears the Sale Price field —
-        // normalize that to null so the DECIMAL column (and "on sale" checks) behave.
-        if (productFields.sale_price === '') {
+        // Normalize sale_type / sale_value from FormData.
+        // When sale_type is present, the beforeSave hook derives sale_price automatically.
+        if (productFields.sale_type !== undefined) {
+            if (!['none', 'percent', 'amount', 'fixed'].includes(productFields.sale_type)) {
+                productFields.sale_type = 'none';
+            }
+            productFields.sale_value = productFields.sale_value !== '' && productFields.sale_value != null
+                ? parseFloat(productFields.sale_value) : null;
+            // Remove any raw sale_price from the payload — hook will set it.
+            delete productFields.sale_price;
+        } else if (productFields.sale_price === '') {
+            // Legacy: admin sent blank sale_price without sale_type
             productFields.sale_price = null;
         }
 
@@ -199,6 +208,37 @@ exports.deleteProduct = async (req, res) => {
         return res.status(200).json({ message: 'Product removed successfully.' });
     } catch (error) {
         return res.status(500).json({ message: 'Server error deleting product.', error: error.message });
+    }
+};
+
+// PATCH /api/products/bulk-sale
+// Body: { ids: [1,2,3], sale_type: 'percent'|'amount'|'fixed'|'none', sale_value?: number }
+exports.bulkSale = async (req, res) => {
+    try {
+        const { ids, sale_type, sale_value } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'ids must be a non-empty array.' });
+        }
+        const validTypes = ['none', 'percent', 'amount', 'fixed'];
+        if (!validTypes.includes(sale_type)) {
+            return res.status(422).json({ message: `sale_type must be one of: ${validTypes.join(', ')}.` });
+        }
+
+        const products = await Product.findAll({ where: { id: ids } });
+        for (const p of products) {
+            const previousSalePrice = p.sale_price;
+            await p.update({
+                sale_type,
+                sale_value: sale_type === 'none' ? null : (parseFloat(sale_value) || null)
+            });
+            notifyWishlistersIfNewlyOnSale(p, previousSalePrice).catch(err =>
+                console.error('Wishlist sale notification failed:', err.message)
+            );
+        }
+
+        return res.json({ message: `${products.length} product(s) updated.`, updated: products.length });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error applying bulk sale.', error: error.message });
     }
 };
 

@@ -2,7 +2,7 @@ $(document).ready(function () {
     const token = localStorage.getItem('token');
     if (!token) { window.location.href = '../login.html'; return; }
 
-    let productsTable, categoriesTable, ordersTable, usersTable, auditTable, announcementsTable;
+    let productsTable, categoriesTable, ordersTable, usersTable, auditTable, announcementsTable, discountsTable;    
     let allProductsData = [];
     let barChart, lineChart, pieChart;
     let showingDeletedProducts = false;
@@ -18,6 +18,7 @@ $(document).ready(function () {
     initUsersTable();
     initAuditTable();
     initAnnouncementsTable();
+    initDiscountsTable();
     preloadCategoryDropdown();
     populateFilterCategoryDropdown();
 
@@ -70,6 +71,7 @@ $(document).ready(function () {
     $('#sidebar-variants-btn').on('click', function (e) { e.preventDefault(); showPanel('#variants-section', '#sidebar-variants-btn'); });
     $('#sidebar-dashboard-btn').on('click', function (e) { e.preventDefault(); showPanel('#dashboard-section', '#sidebar-dashboard-btn'); loadDashboard(); });
     $('#sidebar-products-btn').off('click').on('click', function (e) { e.preventDefault(); switchProductSubTab('products'); });
+    $('#sidebar-discounts-btn').on('click', function (e) { e.preventDefault(); showPanel('#discounts-section', '#sidebar-discounts-btn'); if (discountsTable) { discountsTable.ajax.reload(null, false); }});
     
     /* =================================================================
        CONFIRM MODAL (replaces window.confirm)
@@ -249,6 +251,11 @@ $(document).ready(function () {
                 dataSrc: function (json) { allProductsData = json; return json; }
             },
             columns: [
+                // Add this as the first column definition in initProductsTable()
+                {
+                    data: 'id', orderable: false,
+                    render: d => `<input type="checkbox" class="product-row-cb" value="${d}">`
+                },
                 { data: 'id' },
                 { data: 'style_code', render: d => `<strong style="color:#aaa;">${d}</strong>` },
                 { data: 'name' },
@@ -306,6 +313,38 @@ $(document).ready(function () {
         $('#filter-category, #filter-gender').val('');
         $('#filter-style, #filter-price-min, #filter-price-max').val('');
         productsTable.rows().every(function () { $(this.node()).show(); });
+    });
+
+    // Select All functionality
+    $('#product-select-all').on('change', function() {
+        $('.product-row-cb').prop('checked', $(this).is(':checked'));
+    });
+
+    $('#apply-bulk-sale').on('click', function() {
+        const ids = $('.product-row-cb:checked').map(function() { return $(this).val(); }).get();
+        if (ids.length === 0) {
+            showToast('Select at least one product.', 'error');
+            return;
+        }
+
+        const sale_type = $('#bulk_sale_type').val();
+        const sale_value = $('#bulk_sale_value').val();
+
+        showConfirm(`Apply this bulk sale configuration to ${ids.length} products?`, function() {
+            $.ajax({
+                url: '/api/products/bulk-sale',
+                method: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ ids, sale_type, sale_value }),
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function(res) {
+                    showToast(res.message, 'success');
+                    productsTable.ajax.reload(null, false);
+                    $('.product-row-cb, #product-select-all').prop('checked', false);
+                },
+                error: function(xhr) { showToast(xhr.responseJSON?.message || 'Bulk sale failed.', 'error'); }
+            });
+        });
     });
 
     function populateFilterCategoryDropdown() {
@@ -785,7 +824,8 @@ $(document).ready(function () {
         formData.append('category_id', $('#prod_category_id').val());
         formData.append('gender', $('#prod_gender').val());
         formData.append('price', $('#prod_price').val());
-        formData.append('sale_price', $('#prod_sale_price').val() ? $('#prod_sale_price').val() : '');
+        formData.append('sale_type', $('#prod_sale_type').val());
+        formData.append('sale_value', $('#prod_sale_value').val());
         formData.append('description', $('#prod_description').val().trim());
         formData.append('image_urls', $('#prod_image_urls').val().trim());
         formData.append('remove_image_ids', JSON.stringify(imagesMarkedForRemoval));
@@ -895,7 +935,17 @@ $(document).ready(function () {
                 setTimeout(() => $('#prod_category_id').val(p.category_id), 300);
                 $('#prod_gender').val(p.gender);
                 $('#prod_price').val(p.price);
-                $('#prod_sale_price').val(p.sale_price != null ? p.sale_price : '');
+                
+                // Updated to support new sale configuration fields
+                $('#prod_sale_type').val(p.sale_type || 'none');
+                $('#prod_sale_value').val(p.sale_value != null ? p.sale_value : '');
+                if (p.sale_type === 'none' || !p.sale_type) {
+                    $('#prod_sale_value').prop('disabled', true);
+                } else {
+                    $('#prod_sale_value').prop('disabled', false);
+                }
+                calculateLiveSalePreview();
+                
                 $('#prod_description').val(p.description);
                 $('#prod_is_hidden').prop('checked', !!p.is_hidden);
                 currentProductImages = p.ProductImages || [];
@@ -1618,6 +1668,134 @@ $(document).ready(function () {
         const seconds = String(date.getSeconds()).padStart(2, '0');
         
         return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+
+    // Toggle input state based on type
+    $('#prod_sale_type, #bulk_sale_type').on('change', function() {
+        const isBulk = this.id === 'bulk_sale_type';
+        const type = $(this).val();
+        const $valInput = isBulk ? $('#bulk_sale_value') : $('#prod_sale_value');
+        
+        if (type === 'none') {
+            $valInput.val('').prop('disabled', true);
+        } else {
+            $valInput.prop('disabled', false);
+        }
+        if (!isBulk) calculateLiveSalePreview();
+    });
+
+    $('#prod_sale_value, #prod_price').on('input', calculateLiveSalePreview);
+    function initDiscountsTable() {
+        discountsTable = $('#discountsSecureTable').DataTable({
+            ajax: {
+                url: '/api/admin/discounts',
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` },
+                dataSrc: ''
+            },
+            columns: [
+                { 
+                    data: 'code',
+                    render: data => `<strong style="letter-spacing:1px; color:#fff;">${data}</strong>`
+                },
+                { 
+                    data: 'percent_off',
+                    render: data => `${parseFloat(data)}%`
+                },
+                {
+                    data: null,
+                    render: row => {
+                        const max = row.max_uses;
+                        return max === null ? `${row.times_used} / ∞` : `${row.times_used} / ${max}`;
+                    }
+                },
+                { 
+                    data: 'expires_at',
+                    render: (data, type) => data ? renderDataTableDate(data, type) : '<span style="color:#555;">Never</span>'
+                },
+                { 
+                    data: 'active',
+                    render: data => data 
+                        ? '<span class="badge badge-success" style="background:#1c7a3c; padding:4px 8px; border-radius:4px; font-size:11px;">Active</span>' 
+                        : '<span class="badge badge-danger" style="background:#900; padding:4px 8px; border-radius:4px; font-size:11px;">Disabled</span>'
+                },
+                {
+                    data: 'id',
+                    orderable: false,
+                    render: (data, type, row) => `
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-dark toggle-discount-status-btn" data-id="${data}" data-active="${row.active}" style="padding:6px 12px; font-size:11px;">
+                                ${row.active ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-danger delete-discount-btn" data-id="${data}" style="padding:6px 12px; font-size:11px; background:#900; border:none;">
+                                Purge
+                            </button>
+                        </div>
+                    `
+                }
+            ],
+            order: [[3, 'desc']],
+            responsive: true,
+            backgroundColor: '#111'
+        });
+    }
+
+    // Toggle active status
+    $(document).on('click', '.toggle-discount-status-btn', function() {
+        const id = $(this).data('id');
+        const currentActive = $(this).data('active');
+        
+        $.ajax({
+            url: `/api/admin/discounts/${id}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            headers: { 'Authorization': `Bearer ${token}` },
+            data: JSON.stringify({ active: !currentActive }),
+            success: function() {
+                showToast('Discount code status updated.', 'success');
+                discountsTable.ajax.reload(null, false);
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON?.message || 'Failed to update status.', 'error');
+            }
+        });
+    });
+
+    // Purge/Delete records
+    $(document).on('click', '.delete-discount-btn', function() {
+        const id = $(this).data('id');
+        showConfirm('Are you sure you want to permanently purge this discount code record?', function() {
+            $.ajax({
+                url: `/api/admin/discounts/${id}`,
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function() {
+                    showToast('Discount code permanently deleted.', 'success');
+                    discountsTable.ajax.reload(null, false);
+                },
+                error: function(xhr) {
+                    showToast(xhr.responseJSON?.message || 'Failed to delete discount code.', 'error');
+                }
+            });
+        });
+    });
+
+    function calculateLiveSalePreview() {
+        const price = parseFloat($('#prod_price').val()) || 0;
+        const type = $('#prod_sale_type').val();
+        const val = parseFloat($('#prod_sale_value').val()) || 0;
+        const $preview = $('#prod_sale_preview');
+
+        if (type === 'none' || price === 0) {
+            $preview.text(''); return;
+        }
+
+        let result = price;
+        if (type === 'percent' && val > 0 && val < 100) result = price * (1 - val / 100);
+        else if (type === 'amount' && val > 0) result = price - val;
+        else if (type === 'fixed' && val > 0 && val < price) result = val;
+
+        $preview.text(`Derived Sale Price: ₱${Math.max(0, result).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
     }
 
     // Add some CSS for toast and field errors inline

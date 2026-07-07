@@ -90,6 +90,18 @@
                         <input type="radio" name="discount_type" id="discount_senior" value="senior">
                         <label for="discount_senior">Senior Citizen Discount</label>
                     </div>
+                    
+                    <div class="checkout-option" style="margin-top: 10px;">
+                        <input type="radio" name="discount_type" id="discount_promo" value="promo">
+                        <label for="discount_promo">Promo Code</label>
+                    </div>
+
+                    <div id="promo-code-wrapper" class="fade-collapsible" style="display:none; margin-top: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Discount Code</label>
+                            <input type="text" id="discount_code" name="discount_code" class="form-control" placeholder="Enter promo code" style="text-transform: uppercase;">
+                        </div>
+                    </div>
 
                     <div id="discount-id-wrapper" class="fade-collapsible">
                         <div class="form-group">

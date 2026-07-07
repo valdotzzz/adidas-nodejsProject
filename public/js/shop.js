@@ -135,10 +135,12 @@ $(document).ready(function () {
         const salePrice  = product.sale_price != null ? parseFloat(product.sale_price) : null;
         const onSale     = salePrice != null && salePrice < price;
 
-        const badgeHtml  = onSale
-            ? `<span class="product-card__badge product-card__badge--sale">Sale</span>`
-            : (dayDiff < 30 ? `<span class="product-card__badge product-card__badge--new">New</span>` : '');
+        const pctOff = onSale ? Math.round((1 - (salePrice / price)) * 100) : 0;
 
+        const badgeHtml = onSale
+            ? `<span class="product-card__badge product-card__badge--sale">${pctOff}% Off</span>`
+            : (dayDiff < 30 ? `<span class="product-card__badge product-card__badge--new">New</span>` : '');
+            
         const priceHtml  = onSale
             ? `<span class="price--original">₱${price.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span><span class="price--on-sale">₱${salePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>`
             : `₱${price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;

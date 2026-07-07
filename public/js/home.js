@@ -36,10 +36,15 @@ $(document).ready(function() {
                     const systemDate = new Date();
                     const dayDifference = Math.floor((systemDate - createdDate) / (1000 * 60 * 60 * 24));
                     
-                    const badgeHtml = (dayDifference < 30) 
-                        ? `<span class="product-card__badge product-card__badge--new">New</span>` 
-                        : '';
+                    const price = parseFloat(product.price);
+                    const salePrice = product.sale_price != null ? parseFloat(product.sale_price) : null;
+                    const onSale = salePrice != null && salePrice < price;
+                    const pctOff = onSale ? Math.round((1 - (salePrice / price)) * 100) : 0;
 
+                    const badgeHtml = onSale 
+                        ? `<span class="product-card__badge product-card__badge--sale">${pctOff}% Off</span>` 
+                        : ((dayDifference < 30) ? `<span class="product-card__badge product-card__badge--new">New</span>` : '');
+                        
                     // Resolve category field safely from joined Category model
                     const categoryName = product.Category ? product.Category.name : 'Adidas';
 

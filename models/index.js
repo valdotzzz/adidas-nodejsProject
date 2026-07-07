@@ -17,6 +17,8 @@ const AuditLog    = require('./AuditLog');
 const Wishlist    = require('./Wishlist');
 const Notification = require('./Notification');
 const Announcement = require('./Announcement');
+const DiscountCode        = require('./DiscountCode');
+const DiscountRedemption  = require('./DiscountRedemption');
 
 const db = {
     User, Category, Product, ProductImage,
@@ -24,6 +26,7 @@ const db = {
     Variant, Order, OrderItem, Address,
     Review, ReviewImage, AuditLog,
     Wishlist, Notification, Announcement,
+    DiscountCode, DiscountRedemption,
     sequelize, Sequelize
 };
 
@@ -96,5 +99,15 @@ db.Notification.belongsTo(db.Product, { foreignKey: 'product_id' });
 
 // NOTE: The cart lives in the browser (localStorage / cart-store.js) and is
 // only resolved against live data via POST /api/cart/resolve. No CartItem table.
+
+// ── Discount codes ─────────────────────────────────────────────────────────
+db.DiscountCode.hasMany(db.DiscountRedemption, { foreignKey: 'code_id', onDelete: 'CASCADE' });
+db.DiscountRedemption.belongsTo(db.DiscountCode, { foreignKey: 'code_id' });
+
+db.User.hasMany(db.DiscountRedemption, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.DiscountRedemption.belongsTo(db.User, { foreignKey: 'user_id' });
+
+db.Order.hasOne(db.DiscountRedemption, { foreignKey: 'order_id', onDelete: 'SET NULL' });
+db.DiscountRedemption.belongsTo(db.Order, { foreignKey: 'order_id' });
 
 module.exports = db;
