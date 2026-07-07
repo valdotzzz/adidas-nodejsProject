@@ -26,7 +26,7 @@ module.exports = {
     down: async (queryInterface, Sequelize) => {
         // Remove the specific hardcoded admin user
         await User.destroy({
-            where: { email: 'admin@system.com' }
+            where: { email: 'admin@adidas.com' }
         });
         console.log('Hardcoded admin user removed.');
     }

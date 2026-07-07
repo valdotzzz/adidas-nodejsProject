@@ -23,7 +23,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
 const adminSeeder = require('./seeders/admin-seeder');
 const colorSeeder = require('./seeders/20260622050000-colorways');
-const sizeSeeder = require('/seeders/20250622000000-shoe-sizes.js');
+const sizeSeeder = require('/seeders/20260622000000-shoe-sizes.js');
 
 // REQUIRE MISSING LOOKUP ROUTES
 const colorwayRoutes = require('./routes/colorwayRoutes');
@@ -69,8 +69,9 @@ const PORT = process.env.PORT || 3000;
 db.sequelize.sync({ alter: true })
     .then(async () => {
         await adminSeeder.up(); 
-        await sizeSeeder.up();
-        await colorSeeder.up();
+        const qi = db.sequelize.getQueryInterface();
+        await sizeSeeder.up(qi);
+        await colorSeeder.up(qi);
 
         console.log('Database sync complete.');
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

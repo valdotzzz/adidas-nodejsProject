@@ -765,10 +765,7 @@ $(document).ready(function () {
     $('#openCreateProductBtn').on('click', function () {
         resetFormStates();
         $('#modalTargetTitle').text('Register Product Variant');
-        $('#productCrudTabs').hide();
         $('#productDetailsTab').closest('form').show();
-        $('#productVariantsTab').hide();
-        $('#productImagesTab').hide();
         $('#crudModal').css('display', 'flex');
     });
 
@@ -1462,6 +1459,7 @@ $(document).ready(function () {
         $('#prod_image_urls').val('');
         resetVariantForm();
         $('#productCrudTabs').hide();
+        $('#productVariantsTab').hide();
         $('#productImagesTab').hide();
         currentProductImages = [];
         imagesMarkedForRemoval = [];

@@ -70,6 +70,7 @@ exports.batchAdjustStock = async (req, res) => {
         }
 
         await AuditLog.create({
+            user_id:     req.user.id,
             category:    req.user.role,
             action:      'BATCH_STOCK_ADJUSTMENT',
             description: `Adjusted stock for ${results.length} variant(s).`,

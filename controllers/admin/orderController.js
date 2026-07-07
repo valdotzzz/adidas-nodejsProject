@@ -75,7 +75,7 @@ exports.updateOrderStatus = async (req, res) => {
                 customer:       { id: order.User?.id, name: order.User?.name, email: order.User?.email },
                 previous_status: previousStatus,
                 new_status:     status,
-                total_price:    order.total_price,
+                total_amount:   order.total_amount,
                 restocked_items: restockedItems,
                 items: order.OrderItems.map(i => ({
                     variant_id: i.variant_id,
@@ -109,7 +109,7 @@ exports.deleteOrder = async (req, res) => {
             order_id:   order.id,
             customer:   { id: order.User?.id, name: order.User?.name, email: order.User?.email },
             status:     order.status,
-            total:      order.total_price,
+            total:      order.total_amount,
             item_count: order.OrderItems?.length ?? 0
         };
 
