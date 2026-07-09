@@ -11,8 +11,7 @@ router.post('/', ...adminStaff, auditLog('admin', 'Created/Bulk generated discou
 
 // /validate/:code MUST be declared before /:id/* — otherwise Express matches
 // "validate" as the :id segment and routes into getRedemptions instead.
-// protect required so the discount namespace isn't publicly probe-able.
-router.get('/validate/:code', protect, discountController.validateCode);
+router.get('/validate/:code', ...adminStaff, discountController.validateCode);
 
 router.put('/:id', ...adminStaff, auditLog('admin', 'Modified discount code properties'), discountController.updateCode);
 router.delete('/:id', protect, authorize('admin'), auditLog('admin', 'Purged discount code record'), discountController.deleteCode);

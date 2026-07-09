@@ -401,8 +401,9 @@ $(document).ready(function() {
         $btn.prop('disabled', true).text('Verifying...');
 
         $.ajax({
-            url: `/api/admin/discounts/validate/${codeInput}`, 
-            method: 'GET', 
+            url: `/api/discounts/validate/${codeInput}`,
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + token },
             success: function(match) {
                 $btn.prop('disabled', false).text('Apply');
                 
